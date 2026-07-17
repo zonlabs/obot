@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, RotateCw, Copy, MoreVertical, List, ChevronDown, ChevronUp, Pencil, Check } from 'lucide-react';
+import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, Pencil, Check } from 'lucide-react';
 import { getToolApproval } from '@cloudflare/ai-chat/react';
 import { renderMarkdown } from '../utils/markdown';
 
@@ -98,7 +98,7 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
       <div className="tool-call-header" onClick={() => setIsOpen(!isOpen)}>
         <div className="tool-call-header-left">
           <div className="tool-call-icon">
-            <List size={16} />
+            <Wrench size={13} />
           </div>
           <div className="tool-call-title-container">
             <span className="tool-call-name">{part.toolName}</span>
@@ -106,7 +106,7 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
           </div>
         </div>
         <div className="tool-call-chevron">
-          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </div>
       </div>
 

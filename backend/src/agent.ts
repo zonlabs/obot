@@ -5,18 +5,23 @@ import { Env } from "./db/schema";
 import { shoppingTools } from "./tools";
 
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
+const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa";
 
 function buildSystemPrompt(canvas: any[]): string {
   if (!canvas || canvas.length === 0) {
-    return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Be direct.";
+    return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Be direct. You have access to web search tools — use them to find up-to-date product info, prices, and reviews when needed.";
   }
   const ctx = canvas.map((p: any, i: number) =>
     `[Product ${i + 1}] ${p.name || "Unknown"}${p.store ? " at " + p.store : ""}${p.price ? " \u2014 " + (p.currency || "$") + p.price : ""}`
   ).join("\n");
-  return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Use the product data below to give specific, accurate answers. Be direct.\n\n" + ctx;
+  return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Use the product data below to give specific, accurate answers. You also have access to web search tools — use them to find up-to-date product info, prices, and reviews when needed. Be direct.\n\n" + ctx;
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
+  async onStart() {
+    await this.addMcpServer("exa", EXA_MCP_URL);
+  }
+
   async onChatMessage(
     _onFinish: GenerateTextOnEndCallback,
     _options?: OnChatMessageOptions
@@ -42,8 +47,8 @@ export class ChatAgent extends AIChatAgent<Env> {
         messages: await convertToModelMessages(this.messages),
         toolCalls: "before-last-2-messages",
       }),
-      tools: shoppingTools,
-      stopWhen: isStepCount(5),
+      tools: { ...shoppingTools, ...this.mcp.getAITools() },
+      stopWhen: isStepCount(10),
       onFinish: async (event) => {
         _onFinish?.(event);
 

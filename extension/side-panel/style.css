@@ -1190,31 +1190,22 @@ details pre {
 
 /* Tool Call Accordion Styling */
 .tool-call-accordion {
-  border: 1px solid var(--border-color, #3c4043);
-  border-radius: 8px;
-  margin: 12px 0;
+  margin: 6px 0;
   overflow: hidden;
-  background: var(--bg-secondary, #1e1f20);
-  transition: border-color 0.15s;
-}
-
-.tool-call-accordion:hover {
-  border-color: #55585a;
 }
 
 .tool-call-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 14px;
+  padding: 4px 0;
   cursor: pointer;
   user-select: none;
-  background-color: rgba(255, 255, 255, 0.01);
-  transition: background-color 0.15s;
+  transition: opacity 0.15s;
 }
 
 .tool-call-header:hover {
-  background-color: rgba(255, 255, 255, 0.03);
+  opacity: 0.8;
 }
 
 .tool-call-header-left {
@@ -1257,7 +1248,7 @@ details pre {
 }
 
 .tool-call-status.executing {
-  color: var(--accent-blue, #a8c7fa);
+  color: var(--text-muted, #8e8e8e);
 }
 
 .tool-call-status.waiting {
@@ -1271,13 +1262,11 @@ details pre {
 }
 
 .tool-call-content {
-  padding: 12px 14px;
-  border-top: 1px solid var(--border-color, #3c4043);
+  padding: 6px 0 6px 22px;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 10px;
   font-size: 12px;
-  background-color: rgba(0, 0, 0, 0.15);
   text-align: left;
 }
 
