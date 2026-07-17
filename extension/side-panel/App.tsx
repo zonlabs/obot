@@ -119,7 +119,7 @@ function ChatView(props: ChatViewProps) {
     onIdentityChange: () => {},
   });
 
-  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, reload, setMessages } = useAgentChat({
+  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
     body: { model, canvas: selectedProducts },
   });
@@ -158,6 +158,16 @@ function ChatView(props: ChatViewProps) {
       }
     }
     return null;
+  }, [messages]);
+
+  // ── Find the index of the latest assistant message ──
+  const latestAssistantIdx = useMemo(() => {
+    for (let i = messages.length - 1; i >= 0; i--) {
+      if (messages[i].role === 'assistant') {
+        return i;
+      }
+    }
+    return -1;
   }, [messages]);
 
   // ── Handlers ──
@@ -199,6 +209,23 @@ function ChatView(props: ChatViewProps) {
     
     setPendingEdit({ text: newText });
     setMessages(messages.slice(0, idx));
+  }, [messages, setMessages]);
+
+  const handleRegenerateMessage = useCallback((messageId: string) => {
+    const idx = messages.findIndex(m => m.id === messageId);
+    if (idx === -1) return;
+    
+    const userMsgIdx = idx - 1;
+    if (userMsgIdx < 0) return;
+    
+    const userMsg = messages[userMsgIdx];
+    if (userMsg.role !== 'user') return;
+    
+    const userText = userMsg.parts.find((p: any) => p.type === 'text')?.text || '';
+    if (!userText) return;
+    
+    setPendingEdit({ text: userText });
+    setMessages(messages.slice(0, userMsgIdx));
   }, [messages, setMessages]);
 
   // ── Scroll to bottom on new messages ──
@@ -285,8 +312,9 @@ function ChatView(props: ChatViewProps) {
               isLast={idx === messages.length - 1}
               isStreaming={isStreaming}
               addToolApprovalResponse={addToolApprovalResponse}
-              onRegenerate={reload}
+              onRegenerate={handleRegenerateMessage}
               onEditMessage={handleEditMessage}
+              isLatestAssistant={idx === latestAssistantIdx}
             />
           ))
         )}

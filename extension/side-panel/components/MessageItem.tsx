@@ -133,8 +133,9 @@ interface MessageItemProps {
   isLast: boolean;
   isStreaming: boolean;
   addToolApprovalResponse: (response: { id: string; approved: boolean }) => void;
-  onRegenerate: () => void;
+  onRegenerate: (messageId: string) => void;
   onEditMessage: (messageId: string, newText: string) => void;
+  isLatestAssistant?: boolean;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -144,6 +145,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   addToolApprovalResponse,
   onRegenerate,
   onEditMessage,
+  isLatestAssistant,
  }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -410,9 +412,11 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       {/* Feedback row — only for finished assistant messages */}
       {showFeedback && (
         <div className="feedback-row">
-          <button className="feedback-btn" title="Regenerate" onClick={onRegenerate}>
-            <RotateCw size={14} />
-          </button>
+          {isLatestAssistant && (
+            <button className="feedback-btn" title="Regenerate" onClick={() => onRegenerate(msg.id)}>
+              <RotateCw size={14} />
+            </button>
+          )}
           <button
             className="feedback-btn"
             title="Copy response"
