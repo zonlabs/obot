@@ -33,8 +33,8 @@ function readLocalActiveId(): string {
 
 async function getJwt(): Promise<string | null> {
   return new Promise((resolve) => {
-    chrome.storage.local.get('jwt', (result) => {
-      resolve(result.jwt ?? null);
+    chrome.runtime.sendMessage({ type: 'jwt:get' }, (response) => {
+      resolve(response?.jwt ?? null);
     });
   });
 }

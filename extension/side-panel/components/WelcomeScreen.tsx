@@ -2,6 +2,7 @@ import React from 'react';
 
 interface WelcomeScreenProps {
   onSuggestionClick: (text: string) => void;
+  user?: { name?: string } | null;
 }
 
 const SUGGESTIONS = [
@@ -10,10 +11,10 @@ const SUGGESTIONS = [
   'Address reported gaming heating issues',
 ];
 
-export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSuggestionClick }) => {
+export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({ onSuggestionClick, user }) => {
   return (
     <div className="welcome-container">
-      <h1 className="welcome-greeting">Hello,</h1>
+      <h1 className="welcome-greeting">Hello{user?.name ? `, ${user.name}` : ''},</h1>
       <h2 className="welcome-question">How can I help you today?</h2>
       <div className="suggestion-chips">
         {SUGGESTIONS.map((text) => (

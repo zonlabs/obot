@@ -10,7 +10,7 @@ import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
 
-// ── Constants ──────────────────────────────────────────────────────────────
+// ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
 
 const VALID_MODELS = [
@@ -36,7 +36,289 @@ const MODELS_DATA = [
   { value: '@cf/zai-org/glm-5.2',                      label: 'GLM 5.2',        desc: 'Zhipu AI High Performance Reasoning',         icon: 'zai.svg' },
 ];
 
-// ── Main App ───────────────────────────────────────────────────────────────
+// ── ChatView sub-component: keyed by activeThreadId so it remounts cleanly ──
+
+interface ChatViewProps {
+  activeThreadId: string;
+  activeThreadTitle: string;
+  updateActiveThreadTitle: (title: string) => void;
+  handleNewChat: () => void;
+  handleDeleteThread: (id: string) => void;
+  ensureThreadEntry: () => void;
+  threads: { id: string; title: string; createdAt: number }[];
+  setActiveThreadId: (id: string) => void;
+  model: string;
+  selectedProducts: any[];
+  user: any;
+  products: any[];
+  selectedUrls: string[];
+  activeTabUrl: string;
+  showPopup: boolean;
+  setShowPopup: (v: boolean) => void;
+  showModelPopup: boolean;
+  setShowModelPopup: (v: boolean) => void;
+  showHistoryPopup: boolean;
+  setShowHistoryPopup: (v: boolean) => void;
+  inputValue: string;
+  setInputValue: (v: string) => void;
+  inputRef: React.RefObject<HTMLTextAreaElement | null>;
+  attachPopupRef: React.RefObject<HTMLDivElement | null>;
+  modelDropdownRef: React.RefObject<HTMLDivElement | null>;
+  historyRef: React.RefObject<HTMLDivElement | null>;
+  selectedModelLabel: string;
+  selectedModelIcon: string;
+  onToggleUrl: (url: string) => void;
+  onSelectModel: (val: string) => void;
+  onRemoveProduct: (url: string) => void;
+  onSignIn: () => void;
+  onSignOut: () => void;
+}
+
+function ChatView(props: ChatViewProps) {
+  const {
+    activeThreadId,
+    activeThreadTitle,
+    updateActiveThreadTitle,
+    handleNewChat: _handleThreadNewChat,
+    handleDeleteThread,
+    ensureThreadEntry,
+    threads,
+    setActiveThreadId,
+    model,
+    selectedProducts,
+    user,
+    products,
+    selectedUrls,
+    activeTabUrl,
+    showPopup,
+    setShowPopup,
+    showModelPopup,
+    setShowModelPopup,
+    showHistoryPopup,
+    setShowHistoryPopup,
+    inputValue,
+    setInputValue,
+    inputRef,
+    attachPopupRef,
+    modelDropdownRef,
+    historyRef,
+    selectedModelLabel,
+    selectedModelIcon,
+    onToggleUrl,
+    onSelectModel,
+    onRemoveProduct,
+    onSignIn,
+    onSignOut,
+  } = props;
+
+  // ── Agent & chat — clean remount per threadId ──
+  const agent = useAgent({
+    agent: 'ChatAgent',
+    name: activeThreadId,
+    host: WORKER_URL,
+    onIdentityChange: () => {},
+  });
+
+  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory } = useAgentChat({
+    agent,
+    body: { model, canvas: selectedProducts },
+    getInitialMessages: async () => {
+      try {
+        const res = await fetch(`${WORKER_URL}/agents/chat-agent/${activeThreadId}/get-messages`);
+        if (res.ok) {
+          return await res.json();
+        }
+      } catch (err) {
+        console.error('Error fetching initial messages:', err);
+      }
+      return [];
+    },
+  });
+
+  // ── Agent message listener (title broadcasts) ──
+  useEffect(() => {
+    function handleMessage(event: MessageEvent) {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === 'chat:title') {
+          updateActiveThreadTitle(data.title);
+        }
+      } catch {}
+    }
+    agent.addEventListener('message', handleMessage);
+    return () => agent.removeEventListener('message', handleMessage);
+  }, [agent, updateActiveThreadTitle]);
+
+  // ── Active tool detection ──
+  const activeTool = useMemo(() => {
+    for (const msg of messages) {
+      for (const part of msg.parts) {
+        if ((part as any).type === 'tool-call' && (part as any).state === 'call') {
+          return (part as any).toolName;
+        }
+      }
+    }
+    return null;
+  }, [messages]);
+
+  // ── Handlers ──
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const handleNewChat = useCallback(() => {
+    if (messages.length === 0) return;
+    _handleThreadNewChat();
+  }, [messages, _handleThreadNewChat]);
+
+  const handleSubmit = useCallback(() => {
+    if (inputValue.trim()) {
+      ensureThreadEntry();
+      sendMessage({ text: inputValue });
+      setInputValue('');
+      if (inputRef.current) inputRef.current.style.height = 'auto';
+    }
+  }, [inputValue, ensureThreadEntry, sendMessage, setInputValue, inputRef]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  }, [handleSubmit]);
+
+  const handleSuggestionClick = useCallback((text: string) => {
+    setInputValue(text);
+    if (inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.style.height = 'auto';
+      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
+    }
+  }, [setInputValue, inputRef]);
+
+  // ── Scroll to bottom on new messages ──
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
+
+  // ── Render ──
+  const isStreaming = status === 'streaming';
+
+  return (
+    <>
+      {/* ── Header ── */}
+      <header id="header">
+        <div className="header-title-container" style={{ flex: 1, minWidth: 0 }}>
+          <span
+            className="brand"
+            title={activeThreadTitle || 'Shop Mate'}
+            style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          >
+            {activeThreadTitle || 'Shop Mate'}
+          </span>
+          <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
+            <SquarePen size={18} />
+          </button>
+        </div>
+
+        <div className="header-actions">
+          {/* Auth button */}
+          {user ? (
+            <button
+              className="header-icon-btn profile-btn"
+              title={`Signed in as ${user.name || user.email}. Click to sign out.`}
+              onClick={onSignOut}
+              style={{ padding: 0 }}
+            >
+              <img src={user.picture} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', display: 'block' }} />
+            </button>
+          ) : (
+            <button className="header-icon-btn sign-in-icon-btn" title="Sign in with Google" onClick={onSignIn}>
+              <User size={18} />
+            </button>
+          )}
+
+          {/* History popup */}
+          <div style={{ position: 'relative' }} ref={historyRef}>
+            <button
+              className={`header-icon-btn ${showHistoryPopup ? 'active' : ''}`}
+              title="Recent chats"
+              onClick={() => setShowHistoryPopup(!showHistoryPopup)}
+            >
+              <MoreVertical size={18} />
+            </button>
+            {showHistoryPopup && (
+              <HistoryPopup
+                threads={threads}
+                activeThreadId={activeThreadId}
+                setActiveThreadId={setActiveThreadId}
+                setShowHistoryPopup={setShowHistoryPopup}
+                onDeleteThread={handleDeleteThread}
+              />
+            )}
+          </div>
+
+          <button className="header-icon-btn" title="Open in new tab">
+            <ExternalLink size={18} />
+          </button>
+          <button className="header-icon-btn" title="Close" onClick={() => window.close()}>
+            <X size={18} />
+          </button>
+        </div>
+      </header>
+
+      {/* ── Message area ── */}
+      <div id="messages">
+        {messages.length === 0 ? (
+          <WelcomeScreen user={user} onSuggestionClick={handleSuggestionClick} />
+        ) : (
+          messages.map((msg, idx) => (
+            <MessageItem
+              key={msg.id}
+              msg={msg}
+              isLast={idx === messages.length - 1}
+              isStreaming={isStreaming}
+              addToolApprovalResponse={addToolApprovalResponse}
+            />
+          ))
+        )}
+
+        {(isStreaming || activeTool) && (
+          <LoadingIndicator toolName={activeTool} />
+        )}
+
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* ── Chat Input ── */}
+      <ChatInput
+        inputValue={inputValue}
+        setInputValue={setInputValue}
+        inputRef={inputRef}
+        isStreaming={isStreaming}
+        onSubmit={handleSubmit}
+        onKeyDown={handleKeyDown}
+        showPopup={showPopup}
+        setShowPopup={setShowPopup}
+        attachPopupRef={attachPopupRef}
+        products={products}
+        selectedUrls={selectedUrls}
+        selectedProducts={selectedProducts}
+        activeTabUrl={activeTabUrl}
+        onToggleUrl={onToggleUrl}
+        showModelPopup={showModelPopup}
+        setShowModelPopup={setShowModelPopup}
+        modelDropdownRef={modelDropdownRef}
+        model={model}
+        modelsData={MODELS_DATA}
+        selectedModelLabel={selectedModelLabel}
+        selectedModelIcon={selectedModelIcon}
+        onSelectModel={onSelectModel}
+      />
+    </>
+  );
+}
+
+// ── Main App ──
 export default function App() {
   // ── Product / tab state ──
   const [products, setProducts]       = useState<any[]>([]);
@@ -58,7 +340,6 @@ export default function App() {
   // ── Input state ──
   const [inputValue, setInputValue] = useState('');
   const inputRef          = useRef<HTMLTextAreaElement>(null);
-  const messagesEndRef    = useRef<HTMLDivElement>(null);
   const attachPopupRef    = useRef<HTMLDivElement>(null);
   const modelDropdownRef  = useRef<HTMLDivElement>(null);
   const historyRef        = useRef<HTMLDivElement>(null);
@@ -75,43 +356,11 @@ export default function App() {
     ensureThreadEntry,
   } = useThreads();
 
-
-  // ── Agent & chat ──
-  const agent = useAgent({
-    agent: 'ChatAgent',
-    name: activeThreadId,
-    host: WORKER_URL,
-    // Suppress the identity-change warning — we intentionally switch instances
-    onIdentityChange: () => { /* expected when switching chat threads */ },
-  });
-
+  // ── Derived ──
   const selectedProducts = useMemo(
     () => products.filter(p => selectedUrls.includes(p.url)),
     [products, selectedUrls],
   );
-
-  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory } = useAgentChat({
-    agent,
-    body: { model, canvas: selectedProducts },
-  });
-
-  const activeTool = useMemo(() => {
-    for (const msg of messages) {
-      for (const part of msg.parts) {
-        if ((part as any).type === 'tool-call' && (part as any).state === 'call') {
-          return (part as any).toolName;
-        }
-      }
-    }
-    return null;
-  }, [messages]);
-
-  // ── Derived model metadata ──
-  const handleNewChat = () => {
-    if (messages.length === 0) return;
-    _handleNewChat();
-    clearHistory();
-  };
 
   const selectedModelLabel = useMemo(() => {
     const found = MODELS_DATA.find(m => m.value === model);
@@ -124,11 +373,6 @@ export default function App() {
   }, [model]);
 
   // ── Effects ──
-  const scrollToBottom = useCallback(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, []);
-  useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
-
   useEffect(() => {
     const fetchCanvas = () => {
       chrome.runtime.sendMessage({ type: 'canvas:get' }, (response) => {
@@ -207,158 +451,43 @@ export default function App() {
     setShowModelPopup(false);
   };
 
-
-  const handleSubmit = () => {
-    if (inputValue.trim()) {
-      const isFirstMessage = !threads.some(t => t.id === activeThreadId);
-      ensureThreadEntry();
-      sendMessage({ text: inputValue });
-      if (isFirstMessage) {
-        fetch(`${WORKER_URL}/api/title`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messages: [{ content: inputValue }] }),
-        })
-          .then(r => r.ok ? r.json() : null)
-          .then((data: any) => { if (data?.title) updateActiveThreadTitle(data.title); })
-          .catch(() => {});
-      }
-      setInputValue('');
-      if (inputRef.current) inputRef.current.style.height = 'auto';
-    }
-  };
-
-  const handleSuggestionClick = (text: string) => {
-    setInputValue(text);
-    if (inputRef.current) {
-      inputRef.current.focus();
-      inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSubmit();
-    }
-  };
-
-  // ── Render ─────────────────────────────────────────────────────────────
-  const isStreaming = status === 'streaming';
-
+  // ── Render ──
   return (
-    <>
-      {/* ── Header ── */}
-      <header id="header">
-        <div className="header-title-container" style={{ flex: 1, minWidth: 0 }}>
-          <span
-            className="brand"
-            title={activeThreadTitle || 'Shop Mate'}
-            style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          >
-            {activeThreadTitle || 'Shop Mate'}
-          </span>
-          <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
-            <SquarePen size={18} />
-          </button>
-        </div>
-
-        <div className="header-actions">
-          {/* Auth button */}
-          {user ? (
-            <button
-              className="header-icon-btn profile-btn"
-              title={`Signed in as ${user.name || user.email}. Click to sign out.`}
-              onClick={handleSignOut}
-              style={{ padding: 0 }}
-            >
-              <img src={user.picture} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', display: 'block' }} />
-            </button>
-          ) : (
-            <button className="header-icon-btn sign-in-icon-btn" title="Sign in with Google" onClick={handleSignIn}>
-              <User size={18} />
-            </button>
-          )}
-
-          {/* History popup */}
-          <div style={{ position: 'relative' }} ref={historyRef}>
-            <button
-              className={`header-icon-btn ${showHistoryPopup ? 'active' : ''}`}
-              title="Recent chats"
-              onClick={() => setShowHistoryPopup(!showHistoryPopup)}
-            >
-              <MoreVertical size={18} />
-            </button>
-            {showHistoryPopup && (
-              <HistoryPopup
-                threads={threads}
-                activeThreadId={activeThreadId}
-                setActiveThreadId={setActiveThreadId}
-                setShowHistoryPopup={setShowHistoryPopup}
-                onDeleteThread={handleDeleteThread}
-              />
-            )}
-          </div>
-
-          <button className="header-icon-btn" title="Open in new tab">
-            <ExternalLink size={18} />
-          </button>
-          <button className="header-icon-btn" title="Close" onClick={() => window.close()}>
-            <X size={18} />
-          </button>
-        </div>
-      </header>
-
-      {/* ── Message area ── */}
-      <div id="messages">
-        {messages.length === 0 ? (
-          <WelcomeScreen onSuggestionClick={handleSuggestionClick} />
-        ) : (
-          messages.map((msg, idx) => (
-            <MessageItem
-              key={msg.id}
-              msg={msg}
-              isLast={idx === messages.length - 1}
-              isStreaming={isStreaming}
-              addToolApprovalResponse={addToolApprovalResponse}
-            />
-          ))
-        )}
-
-        {/* ── Thinking / tool indicator — inside scroll area, after last message ── */}
-        {(isStreaming || activeTool) && (
-          <LoadingIndicator toolName={activeTool} />
-        )}
-
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* ── Chat Input ── */}
-      <ChatInput
-        inputValue={inputValue}
-        setInputValue={setInputValue}
-        inputRef={inputRef}
-        isStreaming={isStreaming}
-        onSubmit={handleSubmit}
-        onKeyDown={handleKeyDown}
-        showPopup={showPopup}
-        setShowPopup={setShowPopup}
-        attachPopupRef={attachPopupRef}
-        products={products}
-        selectedUrls={selectedUrls}
-        selectedProducts={selectedProducts}
-        activeTabUrl={activeTabUrl}
-        onToggleUrl={toggleUrl}
-        showModelPopup={showModelPopup}
-        setShowModelPopup={setShowModelPopup}
-        modelDropdownRef={modelDropdownRef}
-        model={model}
-        modelsData={MODELS_DATA}
-        selectedModelLabel={selectedModelLabel}
-        selectedModelIcon={selectedModelIcon}
-        onSelectModel={handleSelectModel}
-      />
-    </>
+    <ChatView
+      key={activeThreadId}
+      activeThreadId={activeThreadId}
+      activeThreadTitle={activeThreadTitle}
+      updateActiveThreadTitle={updateActiveThreadTitle}
+      handleNewChat={_handleNewChat}
+      handleDeleteThread={handleDeleteThread}
+      ensureThreadEntry={ensureThreadEntry}
+      threads={threads}
+      setActiveThreadId={setActiveThreadId}
+      model={model}
+      selectedProducts={selectedProducts}
+      user={user}
+      products={products}
+      selectedUrls={selectedUrls}
+      activeTabUrl={activeTabUrl}
+      showPopup={showPopup}
+      setShowPopup={setShowPopup}
+      showModelPopup={showModelPopup}
+      setShowModelPopup={setShowModelPopup}
+      showHistoryPopup={showHistoryPopup}
+      setShowHistoryPopup={setShowHistoryPopup}
+      inputValue={inputValue}
+      setInputValue={setInputValue}
+      inputRef={inputRef}
+      attachPopupRef={attachPopupRef}
+      modelDropdownRef={modelDropdownRef}
+      historyRef={historyRef}
+      selectedModelLabel={selectedModelLabel}
+      selectedModelIcon={selectedModelIcon}
+      onToggleUrl={toggleUrl}
+      onSelectModel={handleSelectModel}
+      onRemoveProduct={handleRemoveProduct}
+      onSignIn={handleSignIn}
+      onSignOut={handleSignOut}
+    />
   );
 }
