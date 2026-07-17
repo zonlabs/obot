@@ -72,6 +72,7 @@ export default function App() {
     updateActiveThreadTitle,
     handleNewChat: _handleNewChat,
     handleDeleteThread,
+    ensureThreadEntry,
   } = useThreads();
 
 
@@ -106,7 +107,11 @@ export default function App() {
   }, [messages]);
 
   // ── Derived model metadata ──
-  const handleNewChat = () => _handleNewChat(messages.length > 0);
+  const handleNewChat = () => {
+    if (messages.length === 0) return;
+    _handleNewChat();
+    clearHistory();
+  };
 
   const selectedModelLabel = useMemo(() => {
     const found = MODELS_DATA.find(m => m.value === model);
@@ -205,8 +210,19 @@ export default function App() {
 
   const handleSubmit = () => {
     if (inputValue.trim()) {
+      const isFirstMessage = !threads.some(t => t.id === activeThreadId);
+      ensureThreadEntry();
       sendMessage({ text: inputValue });
-      updateActiveThreadTitle(inputValue);
+      if (isFirstMessage) {
+        fetch(`${WORKER_URL}/api/title`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messages: [{ content: inputValue }] }),
+        })
+          .then(r => r.ok ? r.json() : null)
+          .then((data: any) => { if (data?.title) updateActiveThreadTitle(data.title); })
+          .catch(() => {});
+      }
       setInputValue('');
       if (inputRef.current) inputRef.current.style.height = 'auto';
     }
@@ -214,7 +230,6 @@ export default function App() {
 
   const handleSuggestionClick = (text: string) => {
     setInputValue(text);
-    updateActiveThreadTitle(text);
     if (inputRef.current) {
       inputRef.current.focus();
       inputRef.current.style.height = 'auto';
@@ -239,10 +254,10 @@ export default function App() {
         <div className="header-title-container" style={{ flex: 1, minWidth: 0 }}>
           <span
             className="brand"
-            title={activeThreadTitle === 'New Chat' ? 'Shop Mate' : activeThreadTitle}
+            title={activeThreadTitle || 'Shop Mate'}
             style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
-            {activeThreadTitle === 'New Chat' ? 'Shop Mate' : activeThreadTitle}
+            {activeThreadTitle || 'Shop Mate'}
           </span>
           <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
             <SquarePen size={18} />

@@ -1,6 +1,6 @@
 import { ProductData, CanvasState, ChatRequest, ChatResponse } from './shared/types';
 
-const WORKER_URL = 'https://shop-assistant-api.himanshu-mehta-sde.workers.dev';
+const WORKER_URL = 'http://127.0.0.1:8787';
 
 let canvas: CanvasState = { tabs: {}, activeTabId: null };
 

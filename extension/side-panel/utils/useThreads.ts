@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 
-// ── Types ────────────────────────────────────────────────────────────────────
 export interface ChatThread {
   id: string;
   title: string;
@@ -11,7 +10,6 @@ const WORKER_URL = 'http://127.0.0.1:8787';
 const LS_THREADS = 'shopmate_chats';
 const LS_ACTIVE  = 'shopmate_active_thread_id';
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function readLocalThreads(): ChatThread[] {
   try {
     const raw = localStorage.getItem(LS_THREADS);
@@ -33,7 +31,6 @@ function readLocalActiveId(): string {
   return id;
 }
 
-// Retrieve JWT stored by the service worker after sign-in
 async function getJwt(): Promise<string | null> {
   return new Promise((resolve) => {
     chrome.storage.local.get('jwt', (result) => {
@@ -54,24 +51,12 @@ async function apiFetch(path: string, options?: RequestInit) {
   });
 }
 
-// ── Hook ─────────────────────────────────────────────────────────────────────
 export function useThreads() {
-  const initialId = readLocalActiveId();
+  const [threads, setThreads] = useState<ChatThread[]>(() => readLocalThreads());
+  const [activeThreadId, setActiveThreadIdState] = useState<string>(readLocalActiveId);
 
-  const [threads, setThreads] = useState<ChatThread[]>(() => {
-    const local = readLocalThreads();
-    if (local.length > 0) return local;
-    const initial: ChatThread = { id: initialId, title: 'New Chat', createdAt: Date.now() };
-    writeLocalThreads([initial]);
-    return [initial];
-  });
-
-  const [activeThreadId, setActiveThreadIdState] = useState<string>(initialId);
-
-  // Track whether we've already synced from KV so we don't double-merge
   const didSyncRef = useRef(false);
 
-  // ── On mount: load from KV and merge ──────────────────────────────────────
   useEffect(() => {
     if (didSyncRef.current) return;
     didSyncRef.current = true;
@@ -80,91 +65,71 @@ export function useThreads() {
       .then(r => r.ok ? r.json() : { threads: [] })
       .then(({ threads: remote }: { threads: ChatThread[] }) => {
         if (!remote || remote.length === 0) return;
-
         setThreads(local => {
-          // Merge: KV is source of truth, but keep any local-only threads
-          // (created while signed out) that aren't in remote yet.
           const remoteIds = new Set(remote.map(t => t.id));
           const localOnly = local.filter(t => !remoteIds.has(t.id));
           const merged = [...remote, ...localOnly];
           merged.sort((a, b) => b.createdAt - a.createdAt);
-
           writeLocalThreads(merged);
-
-          // If the active thread was wiped (e.g. cleared storage), restore it
-          setActiveThreadIdState(prev => {
-            const stillExists = merged.some(t => t.id === prev);
-            if (!stillExists && merged.length > 0) {
-              const next = merged[0].id;
-              localStorage.setItem(LS_ACTIVE, next);
-              return next;
-            }
-            return prev;
-          });
-
           return merged;
         });
       })
-      .catch(() => { /* network error — stay with local */ });
+      .catch(() => {});
   }, []);
 
-  // ── Derived ───────────────────────────────────────────────────────────────
   const activeThreadTitle = useMemo(() => {
     const found = threads.find(t => t.id === activeThreadId);
-    return found ? found.title : 'Shop Mate';
+    return found ? found.title : '';
   }, [threads, activeThreadId]);
 
-  // ── Setters ───────────────────────────────────────────────────────────────
   const setActiveThreadId = useCallback((id: string) => {
     setActiveThreadIdState(id);
     localStorage.setItem(LS_ACTIVE, id);
   }, []);
 
-  // ── Persist helpers ───────────────────────────────────────────────────────
   const syncUpsert = useCallback((thread: ChatThread) => {
     apiFetch('/threads', {
       method: 'POST',
       body: JSON.stringify(thread),
-    }).catch(() => { /* silent — local is already updated */ });
+    }).catch(() => {});
   }, []);
 
   const syncDelete = useCallback((id: string) => {
     apiFetch(`/threads/${id}`, { method: 'DELETE' }).catch(() => {});
   }, []);
 
-  // ── Thread actions ────────────────────────────────────────────────────────
-  const updateActiveThreadTitle = useCallback((promptText: string) => {
+  const ensureThreadEntry = useCallback(() => {
     setThreads(prev => {
-      const updated = prev.map(t => {
-        if (t.id === activeThreadId && t.title === 'New Chat') {
-          const truncated = promptText.length > 35 ? promptText.slice(0, 32) + '...' : promptText;
-          const next = { ...t, title: truncated };
-          syncUpsert(next);
-          return next;
-        }
-        return t;
-      });
+      const exists = prev.some(t => t.id === activeThreadId);
+      if (exists) return prev;
+      const thread: ChatThread = { id: activeThreadId, title: 'New Chat', createdAt: Date.now() };
+      const updated = [thread, ...prev];
       writeLocalThreads(updated);
+      syncUpsert(thread);
       return updated;
     });
   }, [activeThreadId, syncUpsert]);
 
-  const handleNewChat = useCallback((hasMessages: boolean) => {
-    if (!hasMessages) return;
-    const newId = crypto.randomUUID();
-    const newThread: ChatThread = { id: newId, title: 'New Chat', createdAt: Date.now() };
-
+  const updateActiveThreadTitle = useCallback((promptText: string) => {
     setThreads(prev => {
-      const updated = [newThread, ...prev];
+      const idx = prev.findIndex(t => t.id === activeThreadId);
+      if (idx === -1) return prev;
+      if (prev[idx].title !== 'New Chat') return prev;
+      const truncated = promptText.length > 35 ? promptText.slice(0, 32) + '...' : promptText;
+      const next = { ...prev[idx], title: truncated };
+      const updated = [...prev];
+      updated[idx] = next;
       writeLocalThreads(updated);
+      syncUpsert(next);
       return updated;
     });
+  }, [activeThreadId, syncUpsert]);
 
-    // Persist to KV (title will be updated on first message)
-    syncUpsert(newThread);
-
-    setActiveThreadId(newId);
-  }, [setActiveThreadId, syncUpsert]);
+  const handleNewChat = useCallback(() => {
+    const newId = crypto.randomUUID();
+    setActiveThreadIdState(newId);
+    localStorage.setItem(LS_ACTIVE, newId);
+  }, []);
 
   const handleDeleteThread = useCallback((id: string) => {
     setThreads(prev => {
@@ -172,28 +137,17 @@ export function useThreads() {
       writeLocalThreads(updated);
       return updated;
     });
-
     syncDelete(id);
 
-    if (id === activeThreadId) {
-      setThreads(prev => {
-        const remaining = prev.filter(t => t.id !== id);
-        if (remaining.length > 0) {
-          setActiveThreadId(remaining[0].id);
-        } else {
-          const newId = crypto.randomUUID();
-          const fresh: ChatThread = { id: newId, title: 'New Chat', createdAt: Date.now() };
-          const withFresh = [fresh];
-          writeLocalThreads(withFresh);
-          syncUpsert(fresh);
-          setActiveThreadIdState(newId);
-          localStorage.setItem(LS_ACTIVE, newId);
-          return withFresh;
-        }
-        return remaining;
-      });
-    }
-  }, [activeThreadId, setActiveThreadId, syncDelete, syncUpsert]);
+    setThreads(prev => {
+      if (id === activeThreadId) {
+        const nextId = prev.length > 0 ? prev[0].id : crypto.randomUUID();
+        setActiveThreadIdState(nextId);
+        localStorage.setItem(LS_ACTIVE, nextId);
+      }
+      return prev;
+    });
+  }, [activeThreadId, syncDelete]);
 
   return {
     threads,
@@ -203,5 +157,6 @@ export function useThreads() {
     updateActiveThreadTitle,
     handleNewChat,
     handleDeleteThread,
+    ensureThreadEntry,
   };
 }
