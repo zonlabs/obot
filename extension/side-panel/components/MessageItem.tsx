@@ -3,6 +3,33 @@ import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, Pencil, C
 import { getToolApproval } from '@cloudflare/ai-chat/react';
 import { renderMarkdown } from '../utils/markdown';
 
+/**
+ * Strips MCP-injected ID prefixes (e.g. "tool_ZD5_lTox_") from tool names
+ * and formats the remainder as Title Case.
+ * e.g. "tool_ZD5_lTox_web_search_exa" → "Web Search Exa"
+ */
+function formatToolName(raw: string): string {
+  const parts = raw.split('_');
+  let start = 0;
+  // If name starts with 'tool', skip it plus any following short hash-like segments
+  if (parts[0] === 'tool') {
+    start = 1;
+    while (start < parts.length - 1) {
+      const seg = parts[start];
+      // Hash segments are short (≤5 chars) and contain at least one uppercase letter
+      if (seg.length <= 5 && /[A-Z]/.test(seg)) {
+        start++;
+      } else {
+        break;
+      }
+    }
+  }
+  return parts
+    .slice(start)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
+}
+
 interface ToolCallAccordionProps {
   part: any;
 }
@@ -101,7 +128,7 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
             <Wrench size={13} />
           </div>
           <div className="tool-call-title-container">
-            <span className="tool-call-name">{part.toolName}</span>
+            <span className="tool-call-name">{formatToolName(part.toolName)}</span>
             <span className={`tool-call-status ${statusClass}`}>{statusText}</span>
           </div>
         </div>

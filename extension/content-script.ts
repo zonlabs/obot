@@ -159,34 +159,51 @@ function injectDebugBadge(text: string): void {
   document.body.appendChild(el);
 }
 
-console.log('[Shop Mate] Content script loaded on:', window.location.href);
+console.log('[Obot] Content script loaded on:', window.location.href);
 
 if (typeof document !== 'undefined' && document.body && document.createElement) {
   const tempEl = document.createElement('div');
   if (tempEl && tempEl.style) {
     const isProduct = isProductPage();
-    console.log('[Shop Mate] isProductPage:', isProduct);
-    injectDebugBadge(`Shop Mate: ${isProduct ? 'product page' : 'not a product page'}`);
+    console.log('[Obot] isProductPage:', isProduct);
+    injectDebugBadge(`Obot: ${isProduct ? 'product page' : 'not a product page'}`);
 
     if (isProduct) {
-      console.log('[Shop Mate] Running product extractors...');
+      console.log('[Obot] Running product extractors...');
       const schema = extractSchemaOrg();
-      console.log('[Shop Mate] Schema.org result:', schema);
+      console.log('[Obot] Schema.org result:', schema);
       const meta = extractMetaTags();
-      console.log('[Shop Mate] Meta tags result:', meta);
+      console.log('[Obot] Meta tags result:', meta);
       const dom = extractDOMHeuristics();
-      console.log('[Shop Mate] DOM heuristics result:', dom);
+      console.log('[Obot] DOM heuristics result:', dom);
 
       const product = buildProductData();
-      console.log('[Shop Mate] Built product data:', product);
-      injectDebugBadge(`Shop Mate: ${product?.name?.slice(0, 40) || 'no product'} — ${product?.currency || ''}${product?.price || 0}`);
+      console.log('[Obot] Built product data:', product);
+      injectDebugBadge(`Obot: ${product?.name?.slice(0, 40) || 'no product'} — ${product?.currency || ''}${product?.price || 0}`);
 
       if (product && product.price > 0) {
-        console.log('[Shop Mate] Sending product:detected message');
+        console.log('[Obot] Sending product:detected message');
         chrome.runtime.sendMessage({ type: 'product:detected', data: product });
       } else {
-        console.log('[Shop Mate] Product rejected — price:', product?.price);
+        console.log('[Obot] Product rejected — price:', product?.price);
       }
     }
   }
 }
+
+// ── Page text extraction for LLM suggestions ────────────────────────────────
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.type === 'pageText:get') {
+    try {
+      // Grab visible body text, strip excess whitespace, limit to 800 chars
+      const text = (document.body?.innerText || '')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .slice(0, 800);
+      sendResponse({ text });
+    } catch {
+      sendResponse({ text: '' });
+    }
+  }
+  return true; // Keep channel open for async
+});

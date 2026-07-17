@@ -26,11 +26,20 @@ const ChevronIcon = ({ isUp }: { isUp: boolean }) => (
   />
 );
 
+type ModelTier = 'basic' | 'intermediate' | 'advanced';
+
+const TIER_CONFIG: Record<ModelTier, { label: string; color: string }> = {
+  basic:        { label: 'Basic',        color: 'var(--text-muted, #8e8e8e)' },
+  intermediate: { label: 'Intermediate', color: 'var(--text-secondary, #b0b0b0)' },
+  advanced:     { label: 'Advanced',     color: 'var(--text-primary, #ffffff)' },
+};
+
 interface ModelEntry {
   value: string;
   label: string;
   desc: string;
   icon: string;
+  tier: ModelTier;
 }
 
 interface Product {
@@ -103,41 +112,38 @@ export const ChatInput: React.FC<ChatInputProps> = ({
     <div id="input-outer-container">
       <div id="input-capsule-wrapper" className={isStreaming ? 'streaming' : ''}>
 
-        {/* ── Product Attach Popup ── */}
+        {/* ── Tab Attach Popup ── */}
         {showPopup && (
           <div ref={attachPopupRef} id="attach-popup" className="popup">
-            {products.length === 0 ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: '12px' }}>
-                No products detected on open tabs
-              </div>
-            ) : (
-              products.map((p: any) => {
-                const isSelected = selectedUrls.includes(p.url);
-                return (
-                  <div
-                    key={p.url}
-                    className={`popup-item ${isSelected ? 'active' : ''}`}
-                    onClick={() => onToggleUrl(p.url)}
-                  >
-                    <img
-                      className="popup-item-icon"
-                      src={`https://www.google.com/s2/favicons?domain=${safeUrl(p.url)}&sz=20`}
-                      alt=""
-                    />
-                    <div className="popup-item-info">
-                      <div className="popup-item-name">
-                        {p.name || 'Unknown'}
-                        {p.url === activeTabUrl && (
-                          <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
-                        )}
-                      </div>
-                      <div className="popup-item-store">{p.store || safeUrl(p.url)}</div>
+            <div style={{ padding: '6px 12px', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
+              Open Tabs
+            </div>
+            {products.map((p: any) => {
+              const isSelected = selectedUrls.includes(p.url);
+              return (
+                <div
+                  key={p.url}
+                  className={`popup-item ${isSelected ? 'active' : ''}`}
+                  onClick={() => onToggleUrl(p.url)}
+                >
+                  <img
+                    className="popup-item-icon"
+                    src={`https://www.google.com/s2/favicons?domain=${safeUrl(p.url)}&sz=20`}
+                    alt=""
+                  />
+                  <div className="popup-item-info">
+                    <div className="popup-item-name">
+                      {p.title || p.url}
+                      {p.active && (
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
+                      )}
                     </div>
-                    {isSelected && <CircleCheckIcon />}
+                    <div className="popup-item-store">{p.product?.store || safeUrl(p.url)}</div>
                   </div>
-                );
-              })
-            )}
+                  {isSelected && <CircleCheckIcon />}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -224,26 +230,48 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   <div className="model-popup">
                     <div className="model-popup-header">Choose model</div>
                     <div className="model-popup-list">
-                      {modelsData.map((m) => {
-                        const isSelected = model === m.value;
+                      {(Object.keys(TIER_CONFIG) as ModelTier[]).map((tier) => {
+                        const tierModels = modelsData.filter((m) => m.tier === tier);
+                        if (tierModels.length === 0) return null;
+                        const cfg = TIER_CONFIG[tier];
                         return (
-                          <div
-                            key={m.value}
-                            className={`model-popup-item ${isSelected ? 'active' : ''}`}
-                            onClick={() => onSelectModel(m.value)}
-                          >
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <img
-                                src={chrome.runtime.getURL(`icons/models/${m.icon}`)}
-                                alt=""
-                                style={{ width: '20px', height: '20px', borderRadius: '4px', display: 'block', flexShrink: 0 }}
-                              />
-                              <div className="model-popup-item-info">
-                                <div className="model-popup-item-label">{m.label}</div>
-                                <div className="model-popup-item-desc">{m.desc}</div>
-                              </div>
+                          <div key={tier}>
+                            <div
+                              className="model-popup-tier-header"
+                              style={{
+                                padding: '6px 12px 2px',
+                                fontSize: '10px',
+                                fontWeight: 600,
+                                letterSpacing: '0.5px',
+                                textTransform: 'uppercase',
+                                color: cfg.color,
+                              }}
+                            >
+                              {cfg.label}
                             </div>
-                            {isSelected && <Check size={16} strokeWidth={3} color="#ffffff" />}
+                            {tierModels.map((m) => {
+                              const isSelected = model === m.value;
+                              return (
+                                <div
+                                  key={m.value}
+                                  className={`model-popup-item ${isSelected ? 'active' : ''}`}
+                                  onClick={() => onSelectModel(m.value)}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+                                    <img
+                                      src={chrome.runtime.getURL(`icons/models/${m.icon}`)}
+                                      alt=""
+                                      style={{ width: '20px', height: '20px', borderRadius: '4px', display: 'block', flexShrink: 0 }}
+                                    />
+                                    <div className="model-popup-item-info">
+                                      <div className="model-popup-item-label">{m.label}</div>
+                                      <div className="model-popup-item-desc">{m.desc}</div>
+                                    </div>
+                                  </div>
+                                  {isSelected && <Check size={16} strokeWidth={3} color="#ffffff" />}
+                                </div>
+                              );
+                            })}
                           </div>
                         );
                       })}

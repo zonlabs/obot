@@ -1043,12 +1043,12 @@ details pre {
   align-items: flex-start;
   padding: 48px 24px 24px 24px;
   font-family: inherit;
-  gap: 16px;
+  gap: 12px;
 }
 
 .welcome-greeting {
-  font-size: 32px;
-  font-weight: 500;
+  font-size: 28px;
+  font-weight: 600;
   margin: 0;
   line-height: 1.2;
   background: linear-gradient(to right, #ea4335 0%, #ff8a80 100%);
@@ -1057,44 +1057,68 @@ details pre {
 }
 
 .welcome-question {
-  font-size: 32px;
+  font-size: 22px;
   font-weight: 500;
   color: var(--text-secondary);
   margin: 0;
-  line-height: 1.2;
+  line-height: 1.3;
   opacity: 0.9;
 }
 
+.welcome-context-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-top: 20px;
+}
+
 .suggestion-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
   width: 100%;
 }
 
 .suggestion-chip {
-  background: var(--bg-secondary);
-  border: none;
-  border-radius: 24px;
-  padding: 14px 20px;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
+  background: var(--bg-secondary, #1e1f20);
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 12px;
+  padding: 12px 14px;
+  color: var(--text-secondary, #c4c7c5);
+  font-size: 12px;
+  font-weight: 400;
   text-align: left;
   cursor: pointer;
-  transition: background-color 0.15s, transform 0.1s;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.1s;
   outline: none;
   width: 100%;
-  max-width: 340px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.suggestion-chip-icon {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.suggestion-chip-text {
+  color: var(--text-primary, #e3e3e3);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.35;
 }
 
 .suggestion-chip:hover {
-  background-color: var(--bg-hover);
+  background-color: rgba(255,255,255,0.07);
+  border-color: rgba(255,255,255,0.1);
 }
 
 .suggestion-chip:active {
-  transform: scale(0.98);
+  transform: scale(0.97);
 }
 
 /* History Popup */
@@ -1190,75 +1214,94 @@ details pre {
 
 /* Tool Call Accordion Styling */
 .tool-call-accordion {
-  margin: 6px 0;
-  overflow: hidden;
+  margin: 4px 0;
 }
 
 .tool-call-header {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 4px 0;
+  gap: 6px;
+  padding: 4px 6px 4px 0;
+  border-radius: 20px;
+  background: transparent;
   cursor: pointer;
   user-select: none;
   transition: opacity 0.15s;
+  max-width: 100%;
 }
 
 .tool-call-header:hover {
-  opacity: 0.8;
+  opacity: 0.7;
 }
 
 .tool-call-header-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 6px;
+  min-width: 0;
 }
 
 .tool-call-icon {
   color: var(--text-muted, #8e8e8e);
   display: flex;
   align-items: center;
+  flex-shrink: 0;
 }
 
+/* hide the old title-container column layout */
 .tool-call-title-container {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  text-align: left;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .tool-call-name {
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--text-primary, #e3e3e3);
-  font-family: monospace;
+  font-weight: 500;
+  font-size: 12px;
+  color: var(--text-secondary, #bdc1c6);
+  font-family: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Status pill badge — inline */
 .tool-call-status {
-  font-size: 11px;
-  font-weight: 500;
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 10px;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .tool-call-status.completed {
-  color: #81c784; /* Muted Green */
+  background: rgba(129, 199, 132, 0.12);
+  color: #81c784;
 }
 
 .tool-call-status.failed {
-  color: #e57373; /* Muted Red */
+  background: rgba(229, 115, 115, 0.12);
+  color: #e57373;
 }
 
 .tool-call-status.executing {
+  background: rgba(255,255,255,0.07);
   color: var(--text-muted, #8e8e8e);
 }
 
 .tool-call-status.waiting {
-  color: #ffb74d; /* Muted Orange */
+  background: rgba(255, 183, 77, 0.12);
+  color: #ffb74d;
 }
 
 .tool-call-chevron {
   color: var(--text-muted, #8e8e8e);
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  margin-left: 2px;
 }
 
 .tool-call-content {

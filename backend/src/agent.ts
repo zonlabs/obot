@@ -40,39 +40,47 @@ export class ChatAgent extends AIChatAgent<Env> {
           .trim()
       : '';
 
-    const result = streamText({
-      model: workersai(modelName),
-      system: buildSystemPrompt(canvas || []),
-      messages: pruneMessages({
-        messages: await convertToModelMessages(this.messages),
-        toolCalls: "before-last-2-messages",
-      }),
-      tools: { ...shoppingTools, ...this.mcp.getAITools() },
-      stopWhen: isStepCount(10),
-      onFinish: async (event) => {
-        _onFinish?.(event);
+    try {
+      const result = streamText({
+        model: workersai(modelName),
+        system: buildSystemPrompt(canvas || []),
+        messages: pruneMessages({
+          messages: await convertToModelMessages(this.messages),
+          toolCalls: "before-last-2-messages",
+        }),
+        tools: { ...shoppingTools, ...this.mcp.getAITools() },
+        maxOutputTokens: 1024,
+        temperature: 0.3,
+        stopWhen: isStepCount(10),
+        onFinish: async (event) => {
+          _onFinish?.(event);
 
-        if (userMessage) {
-          try {
-            const res: any = await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
-              messages: [
-                { role: 'system', content: 'Generate a concise title (max 6 words) for a shopping assistant chat based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation, no explanation.' },
-                { role: 'user', content: userMessage },
-              ],
-              max_tokens: 15,
-              temperature: 0.3,
-            });
-            const title = (res.response?.trim() || 'New Chat').replace(/^["']|["']$/g, '') || 'New Chat';
-            this.broadcast(JSON.stringify({ type: 'chat:title', title }));
-          } catch {
-            // Title generation failed — keep default "New Chat"
+          if (userMessage) {
+            try {
+              const res: any = await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
+                messages: [
+                  { role: 'system', content: 'Generate a concise title (max 6 words) for a shopping assistant chat based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation, no explanation.' },
+                  { role: 'user', content: userMessage },
+                ],
+                max_tokens: 15,
+                temperature: 0.3,
+              });
+              const title = (res.response?.trim() || 'New Chat').replace(/^["']|["']$/g, '') || 'New Chat';
+              this.broadcast(JSON.stringify({ type: 'chat:title', title }));
+            } catch {
+              // Title generation failed — keep default "New Chat"
+            }
           }
-        }
-      },
-    });
+        },
+      });
 
-    return createUIMessageStreamResponse({
-      stream: toUIMessageStream({ stream: result.stream }),
-    });
+      return createUIMessageStreamResponse({
+        stream: toUIMessageStream({ stream: result.stream }),
+      });
+    } catch (err) {
+      const msg = `Error with model "${modelName}": ${err instanceof Error ? err.message : String(err)}`;
+      console.error('[ChatAgent]', msg);
+      return new Response(msg, { status: 500 });
+    }
   }
 }

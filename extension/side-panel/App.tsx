@@ -13,27 +13,50 @@ import { useThreads } from './utils/useThreads';
 // ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
 
+// Models ordered from basic → advanced
 const VALID_MODELS = [
-  '@cf/meta/llama-4-scout-17b-16e-instruct',
-  '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
-  '@cf/google/gemma-4-26b-a4b-it',
-  '@cf/openai/gpt-oss-120b',
+  // ── Basic (1B-3B, fast & cheap) ──
+  '@cf/meta/llama-3.2-1b-instruct',
+  '@cf/google/gemma-2b-it-lora',
+  '@cf/meta/llama-3.2-3b-instruct',
+  // ── Intermediate (3B-8B) ──
   '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/moonshotai/kimi-k2.6',
   '@cf/zai-org/glm-4.7-flash',
+  '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
+  // ── Advanced (17B-120B) ──
+  '@cf/meta/llama-4-scout-17b-16e-instruct',
+  '@cf/google/gemma-4-26b-a4b-it',
   '@cf/zai-org/glm-5.2',
+  '@cf/moonshotai/kimi-k2.6',
+  '@cf/openai/gpt-oss-120b',
 ];
-const DEFAULT_MODEL = VALID_MODELS[0];
+const DEFAULT_MODEL = '@cf/meta/llama-3.2-3b-instruct';
 
-const MODELS_DATA = [
-  { value: '@cf/meta/llama-4-scout-17b-16e-instruct',  label: 'Llama 4 Scout',  desc: 'Meta MoE Instruct Generalist (17B active)',   icon: 'meta.svg' },
-  { value: '@cf/meta/llama-3.1-8b-instruct-fp8-fast',  label: 'Llama 3.1 8B',   desc: 'Meta Fast Text Instruct (FP8 quantized)',     icon: 'meta.svg' },
-  { value: '@cf/google/gemma-4-26b-a4b-it',            label: 'Gemma 4 26B',    desc: 'Google MoE Multimodal (4B active)',           icon: 'google.svg' },
-  { value: '@cf/openai/gpt-oss-120b',                  label: 'GPT-OSS 120B',   desc: 'Open-source frontier text model',             icon: 'openai.svg' },
-  { value: '@cf/qwen/qwen3-30b-a3b-fp8',               label: 'Qwen 3 30B',     desc: 'Alibaba Multilingual MoE (3B active)',        icon: 'qwen.svg' },
-  { value: '@cf/moonshotai/kimi-k2.6',                 label: 'Kimi K2.6',      desc: 'Moonshot AI Long Context & Vision',           icon: 'moonshotai.svg' },
-  { value: '@cf/zai-org/glm-4.7-flash',                label: 'GLM 4.7 Flash',  desc: 'Zhipu AI Fast Bilingual Assistant',           icon: 'zai.svg' },
-  { value: '@cf/zai-org/glm-5.2',                      label: 'GLM 5.2',        desc: 'Zhipu AI High Performance Reasoning',         icon: 'zai.svg' },
+type ModelTier = 'basic' | 'intermediate' | 'advanced';
+
+interface ModelEntry {
+  value: string;
+  label: string;
+  desc: string;
+  icon: string;
+  tier: ModelTier;
+}
+
+const MODELS_DATA: ModelEntry[] = [
+  // ── Basic ──
+  { value: '@cf/meta/llama-3.2-1b-instruct',       label: 'Llama 3.2 1B',   desc: 'Meta Tiny Text Instruct (fastest, cheapest)',   icon: 'meta.svg',   tier: 'basic' },
+  { value: '@cf/google/gemma-2b-it-lora',           label: 'Gemma 2B LoRA',  desc: 'Google Lightweight LoRA Adapter (2B)',          icon: 'google.svg', tier: 'basic' },
+  { value: '@cf/meta/llama-3.2-3b-instruct',       label: 'Llama 3.2 3B',   desc: 'Meta Small Text Instruct (balanced)',           icon: 'meta.svg',   tier: 'basic' },
+  // ── Intermediate ──
+  { value: '@cf/qwen/qwen3-30b-a3b-fp8',            label: 'Qwen 3 30B',    desc: 'Alibaba Multilingual MoE (3B active)',          icon: 'qwen.svg',   tier: 'intermediate' },
+  { value: '@cf/zai-org/glm-4.7-flash',             label: 'GLM 4.7 Flash', desc: 'Zhipu AI Fast Bilingual Assistant',              icon: 'zai.svg',    tier: 'intermediate' },
+  { value: '@cf/meta/llama-3.1-8b-instruct-fp8-fast', label: 'Llama 3.1 8B', desc: 'Meta Fast Text Instruct (FP8 quantized)',       icon: 'meta.svg',   tier: 'intermediate' },
+  // ── Advanced ──
+  { value: '@cf/meta/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout', desc: 'Meta MoE Instruct Generalist (17B active)',    icon: 'meta.svg',   tier: 'advanced' },
+  { value: '@cf/google/gemma-4-26b-a4b-it',          label: 'Gemma 4 26B',   desc: 'Google MoE Multimodal (4B active)',             icon: 'google.svg', tier: 'advanced' },
+  { value: '@cf/zai-org/glm-5.2',                   label: 'GLM 5.2',       desc: 'Zhipu AI High Performance Reasoning',           icon: 'zai.svg',    tier: 'advanced' },
+  { value: '@cf/moonshotai/kimi-k2.6',              label: 'Kimi K2.6',     desc: 'Moonshot AI Long Context & Vision',             icon: 'moonshotai.svg', tier: 'advanced' },
+  { value: '@cf/openai/gpt-oss-120b',               label: 'GPT-OSS 120B',  desc: 'Open-source frontier text model',               icon: 'openai.svg', tier: 'advanced' },
 ];
 
 // ── ChatView sub-component: keyed by activeThreadId so it remounts cleanly ──
@@ -53,6 +76,9 @@ interface ChatViewProps {
   products: any[];
   selectedUrls: string[];
   activeTabUrl: string;
+  activeTabTitle: string;
+  activeTabSuggestions: string[];
+  suggestionsLoading: boolean;
   showPopup: boolean;
   setShowPopup: (v: boolean) => void;
   showModelPopup: boolean;
@@ -90,6 +116,9 @@ function ChatView(props: ChatViewProps) {
     products,
     selectedUrls,
     activeTabUrl,
+    activeTabTitle,
+    activeTabSuggestions,
+    suggestionsLoading,
     showPopup,
     setShowPopup,
     showModelPopup,
@@ -244,10 +273,10 @@ function ChatView(props: ChatViewProps) {
         <div className="header-title-container" style={{ flex: 1, minWidth: 0 }}>
           <span
             className="brand"
-            title={activeThreadTitle || 'Shop Mate'}
+            title={activeThreadTitle || 'Obot'}
             style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
-            {activeThreadTitle || 'Shop Mate'}
+            {activeThreadTitle || 'Obot'}
           </span>
           <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
             <SquarePen size={18} />
@@ -303,7 +332,14 @@ function ChatView(props: ChatViewProps) {
       {/* ── Message area ── */}
       <div id="messages">
         {messages.length === 0 ? (
-          <WelcomeScreen user={user} onSuggestionClick={handleSuggestionClick} />
+          <WelcomeScreen
+            user={user}
+            onSuggestionClick={handleSuggestionClick}
+            activeTabUrl={activeTabUrl}
+            activeTabTitle={activeTabTitle}
+            llmSuggestions={activeTabSuggestions}
+            suggestionsLoading={suggestionsLoading}
+          />
         ) : (
           messages.map((msg, idx) => (
             <MessageItem
@@ -411,10 +447,13 @@ const ChatSkeleton = () => {
 
 // ── Main App ──
 export default function App() {
-  // ── Product / tab state ──
-  const [products, setProducts]       = useState<any[]>([]);
+  // ── Tab state ──
+  const [tabs, setTabs]               = useState<any[]>([]);
   const [selectedUrls, setSelectedUrls] = useState<string[]>([]);
-  const [activeTabUrl, setActiveTabUrl] = useState<string>('');
+  const [activeTabUrl, setActiveTabUrl]         = useState<string>('');
+  const [activeTabTitle, setActiveTabTitle]     = useState<string>('');
+  const [activeTabSuggestions, setActiveTabSuggestions] = useState<string[]>([]);
+  const [suggestionsLoading, setSuggestionsLoading]     = useState(false);
   const [user, setUser]               = useState<any>(null);
 
   // ── Model state ──
@@ -449,8 +488,8 @@ export default function App() {
 
   // ── Derived ──
   const selectedProducts = useMemo(
-    () => products.filter(p => selectedUrls.includes(p.url)),
-    [products, selectedUrls],
+    () => tabs.filter(t => selectedUrls.includes(t.url)).map(t => t.product).filter(Boolean),
+    [tabs, selectedUrls],
   );
 
   const selectedModelLabel = useMemo(() => {
@@ -465,19 +504,19 @@ export default function App() {
 
   // ── Effects ──
   useEffect(() => {
-    const fetchCanvas = () => {
+    const fetchTabs = () => {
       chrome.runtime.sendMessage({ type: 'canvas:get' }, (response) => {
-        const p = response?.canvas || [];
-        setProducts(p);
+        const t = response?.tabs || [];
+        setTabs(t);
         setSelectedUrls(prev =>
           prev.length === 0
-            ? p.map((x: any) => x.url)
-            : prev.filter((u: string) => p.some((x: any) => x.url === u))
+            ? t.map((x: any) => x.url)
+            : prev.filter((u: string) => t.some((x: any) => x.url === u))
         );
       });
     };
 
-    fetchCanvas();
+    fetchTabs();
 
     chrome.runtime.sendMessage({ type: 'auth:status' }, (response) => {
       if (response?.user) setUser(response.user);
@@ -485,13 +524,65 @@ export default function App() {
 
     if (typeof chrome !== 'undefined' && chrome.tabs?.query) {
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (tabs[0]?.url) setActiveTabUrl(tabs[0].url);
+        const tabUrl   = tabs[0]?.url   || '';
+        const tabTitle = tabs[0]?.title || '';
+        if (tabs[0]?.url)   setActiveTabUrl(tabUrl);
+        if (tabs[0]?.title) setActiveTabTitle(tabTitle);
+
+        // Generate LLM suggestions for the active tab
+        if (tabUrl && !tabUrl.startsWith('chrome://')) {
+          console.log('[Obot][suggestions] active tab:', tabUrl, '| title:', tabTitle);
+          setSuggestionsLoading(true);
+          setActiveTabSuggestions([]);
+
+          // Extract a short page text via the content script (best-effort).
+          // If the content script isn't injected into this tab, lastError is set
+          // and we simply fall back to an empty pageText.
+          const runSuggestions = (pageText: string) => {
+            console.log('[Obot][suggestions] posting to /api/suggestions, pageText len:', pageText.length);
+            fetch(`${WORKER_URL}/api/suggestions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ url: tabUrl, title: tabTitle, pageText }),
+            })
+              .then((r) => {
+                console.log('[Obot][suggestions] response status:', r.status);
+                return r.json();
+              })
+              .then((data: any) => {
+                console.log('[Obot][suggestions] response data:', JSON.stringify(data));
+                console.log('[Obot][suggestions] DEBUG:', JSON.stringify(data?.debug));
+                if (Array.isArray(data.suggestions) && data.suggestions.length > 0) {
+                  console.log('[Obot][suggestions] setting', data.suggestions.length, 'suggestions');
+                  setActiveTabSuggestions(data.suggestions);
+                } else {
+                  console.log('[Obot][suggestions] no suggestions in response');
+                }
+              })
+              .catch((e) => { console.log('[Obot][suggestions] fetch error:', e); })
+              .finally(() => setSuggestionsLoading(false));
+          };
+
+          if (typeof chrome !== 'undefined' && chrome.tabs?.sendMessage) {
+            chrome.tabs.sendMessage(
+              tabs[0]!.id!,
+              { type: 'pageText:get' },
+              (response) => {
+                const pageText = chrome.runtime.lastError ? '' : (response?.text || '');
+                console.log('[Obot][suggestions] pageText from content script len:', pageText.length, '| lastError:', chrome.runtime.lastError?.message || 'none');
+                runSuggestions(pageText);
+              }
+            );
+          } else {
+            runSuggestions('');
+          }
+        }
       });
     }
 
     const handleMessage = (message: any) => {
       if (message.type === 'canvas:updated' || message.type === 'product:detected') {
-        fetchCanvas();
+        fetchTabs();
       }
     };
     chrome.runtime.onMessage.addListener(handleMessage);
@@ -558,9 +649,12 @@ export default function App() {
         model={model}
         selectedProducts={selectedProducts}
         user={user}
-        products={products}
+        products={tabs}
         selectedUrls={selectedUrls}
         activeTabUrl={activeTabUrl}
+        activeTabTitle={activeTabTitle}
+        activeTabSuggestions={activeTabSuggestions}
+        suggestionsLoading={suggestionsLoading}
         showPopup={showPopup}
         setShowPopup={setShowPopup}
         showModelPopup={showModelPopup}

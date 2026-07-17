@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Shop Mate",
+  "name": "Obot",
   "version": "1.0.0",
-  "description": "Your shopping sidekick — compare products across tabs, find deals, decide what to buy",
+  "description": "Your AI shopping sidekick",
   "permissions": [
     "storage",
     "sidePanel",
@@ -29,7 +29,7 @@
     "default_path": "side-panel/index.html"
   },
   "action": {
-    "default_title": "Shop Mate",
+    "default_title": "Obot",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",

@@ -63,8 +63,19 @@ chrome.runtime.onMessage.addListener((
 ) => {
   ready.then(() => {
     if (message.type === 'canvas:get') {
-      sendResponse({ canvas: Object.values(canvas.tabs) });
-      console.log('[SW] canvas:get returned', Object.values(canvas.tabs).length, 'products');
+      chrome.tabs.query({}, (allTabs) => {
+        const tabs = allTabs
+          .filter(t => t.url && !t.url.startsWith('chrome://') && !t.url.startsWith('about:'))
+          .map(t => ({
+            url: t.url!,
+            title: t.title || t.url!,
+            tabId: t.id,
+            active: t.active,
+            product: canvas.tabs[t.id!] || null,
+          }));
+        sendResponse({ tabs });
+      });
+      console.log('[SW] canvas:get returning', Object.keys(canvas.tabs).length, 'tabs with products');
     } else if (message.type === 'canvas:remove') {
       const url = message.url as string;
       for (const [tid, p] of Object.entries(canvas.tabs)) {
