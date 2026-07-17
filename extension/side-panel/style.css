@@ -7,8 +7,8 @@
   --text-secondary: #c4c7c5;
   --text-muted: #8e8e8e;
   --border-color: #3c4043;
-  --accent-blue: #a8c7fa;
-  --accent-blue-hover: #c2e7ff;
+  --accent-blue: #ff8a80;
+  --accent-blue-hover: #ffb2ab;
   --code-bg: #0f0f0f;
   --user-bubble-bg: #1e1f20;
   --error-bg: #3c1e1e;
@@ -1322,6 +1322,27 @@ details pre {
 
 .message.user:hover .user-action-row {
   opacity: 1;
+}
+
+/* Skeleton Glow Animation */
+.skeleton-glow {
+  background: linear-gradient(
+    90deg,
+    var(--bg-secondary) 25%,
+    var(--bg-hover) 37%,
+    var(--bg-secondary) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-pulse 1.4s ease infinite;
+}
+
+@keyframes skeleton-pulse {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
 }
 
 

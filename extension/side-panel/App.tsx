@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
 import { SquarePen, MoreVertical, ExternalLink, X, User } from 'lucide-react';
@@ -124,6 +124,16 @@ function ChatView(props: ChatViewProps) {
     body: { model, canvas: selectedProducts },
   });
 
+  const [pendingEdit, setPendingEdit] = useState<{ text: string } | null>(null);
+
+  // ── Trigger edited message submission after state update ──
+  useEffect(() => {
+    if (pendingEdit) {
+      sendMessage({ text: pendingEdit.text });
+      setPendingEdit(null);
+    }
+  }, [messages, pendingEdit, sendMessage]);
+
   // ── Agent message listener (title broadcasts) ──
   useEffect(() => {
     function handleMessage(event: MessageEvent) {
@@ -184,26 +194,12 @@ function ChatView(props: ChatViewProps) {
   }, [setInputValue, inputRef]);
 
   const handleEditMessage = useCallback((messageId: string, newText: string) => {
-    setMessages(prev => {
-      const idx = prev.findIndex(m => m.id === messageId);
-      if (idx === -1) return prev;
-      
-      const updatedMessage = {
-        ...prev[idx],
-        parts: prev[idx].parts.map((p: any) => 
-          p.type === 'text' ? { ...p, text: newText } : p
-        )
-      };
-      
-      const updated = [...prev.slice(0, idx), updatedMessage];
-      
-      setTimeout(() => {
-        reload();
-      }, 50);
-      
-      return updated;
-    });
-  }, [setMessages, reload]);
+    const idx = messages.findIndex(m => m.id === messageId);
+    if (idx === -1) return;
+    
+    setPendingEdit({ text: newText });
+    setMessages(messages.slice(0, idx));
+  }, [messages, setMessages]);
 
   // ── Scroll to bottom on new messages ──
   const scrollToBottom = useCallback(() => {
@@ -331,6 +327,59 @@ function ChatView(props: ChatViewProps) {
     </>
   );
 }
+
+const ChatSkeleton = () => {
+  return (
+    <div style={{ 
+      display: 'flex', 
+      flexDirection: 'column', 
+      height: '100vh', 
+      background: 'var(--bg-primary, #131314)', 
+      padding: '16px', 
+      boxSizing: 'border-box' 
+    }}>
+      {/* Header */}
+      <div style={{
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        height: '40px',
+        marginBottom: '20px',
+        width: '100%'
+      }}>
+        <div className="skeleton-glow" style={{ width: '80px', height: '14px', borderRadius: '7px' }} />
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div className="skeleton-glow" style={{ width: '80px', height: '14px', borderRadius: '7px' }} />
+          <X size={16} style={{ color: 'var(--text-muted, #8e8e8e)', opacity: 0.6 }} />
+        </div>
+      </div>
+      
+      {/* Content Area */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '16px',
+        width: '100%',
+        overflow: 'hidden'
+      }}>
+        {/* Large Top Card */}
+        <div className="skeleton-glow" style={{
+          flex: '0 0 55%',
+          borderRadius: '16px',
+          width: '100%'
+        }} />
+        
+        {/* Smaller Bottom Card */}
+        <div className="skeleton-glow" style={{
+          flex: '0 0 25%',
+          borderRadius: '16px',
+          width: '100%'
+        }} />
+      </div>
+    </div>
+  );
+};
 
 // ── Main App ──
 export default function App() {
@@ -467,41 +516,43 @@ export default function App() {
 
   // ── Render ──
   return (
-    <ChatView
-      key={activeThreadId}
-      activeThreadId={activeThreadId}
-      activeThreadTitle={activeThreadTitle}
-      updateActiveThreadTitle={updateActiveThreadTitle}
-      handleNewChat={_handleNewChat}
-      handleDeleteThread={handleDeleteThread}
-      ensureThreadEntry={ensureThreadEntry}
-      threads={threads}
-      setActiveThreadId={setActiveThreadId}
-      model={model}
-      selectedProducts={selectedProducts}
-      user={user}
-      products={products}
-      selectedUrls={selectedUrls}
-      activeTabUrl={activeTabUrl}
-      showPopup={showPopup}
-      setShowPopup={setShowPopup}
-      showModelPopup={showModelPopup}
-      setShowModelPopup={setShowModelPopup}
-      showHistoryPopup={showHistoryPopup}
-      setShowHistoryPopup={setShowHistoryPopup}
-      inputValue={inputValue}
-      setInputValue={setInputValue}
-      inputRef={inputRef}
-      attachPopupRef={attachPopupRef}
-      modelDropdownRef={modelDropdownRef}
-      historyRef={historyRef}
-      selectedModelLabel={selectedModelLabel}
-      selectedModelIcon={selectedModelIcon}
-      onToggleUrl={toggleUrl}
-      onSelectModel={handleSelectModel}
-      onRemoveProduct={handleRemoveProduct}
-      onSignIn={handleSignIn}
-      onSignOut={handleSignOut}
-    />
+    <Suspense fallback={<ChatSkeleton />}>
+      <ChatView
+        key={activeThreadId}
+        activeThreadId={activeThreadId}
+        activeThreadTitle={activeThreadTitle}
+        updateActiveThreadTitle={updateActiveThreadTitle}
+        handleNewChat={_handleNewChat}
+        handleDeleteThread={handleDeleteThread}
+        ensureThreadEntry={ensureThreadEntry}
+        threads={threads}
+        setActiveThreadId={setActiveThreadId}
+        model={model}
+        selectedProducts={selectedProducts}
+        user={user}
+        products={products}
+        selectedUrls={selectedUrls}
+        activeTabUrl={activeTabUrl}
+        showPopup={showPopup}
+        setShowPopup={setShowPopup}
+        showModelPopup={showModelPopup}
+        setShowModelPopup={setShowModelPopup}
+        showHistoryPopup={showHistoryPopup}
+        setShowHistoryPopup={setShowHistoryPopup}
+        inputValue={inputValue}
+        setInputValue={setInputValue}
+        inputRef={inputRef}
+        attachPopupRef={attachPopupRef}
+        modelDropdownRef={modelDropdownRef}
+        historyRef={historyRef}
+        selectedModelLabel={selectedModelLabel}
+        selectedModelIcon={selectedModelIcon}
+        onToggleUrl={toggleUrl}
+        onSelectModel={handleSelectModel}
+        onRemoveProduct={handleRemoveProduct}
+        onSignIn={handleSignIn}
+        onSignOut={handleSignOut}
+      />
+    </Suspense>
   );
 }

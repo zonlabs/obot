@@ -187,72 +187,79 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const showFeedback =
     msg.role === 'assistant' && hasText && !(isLast && isStreaming);
 
+  const originalText = msg.parts.find((p: any) => p.type === 'text')?.text || '';
+  const isChanged = editText !== originalText;
+
   if (isEditing) {
     return (
-      <div className={`message ${msg.role}`} style={{ width: '100%' }}>
-        <div style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '8px',
-          width: '100%',
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '12px',
-          padding: '12px',
-          boxSizing: 'border-box'
-        }}>
-          <textarea
-            value={editText}
-            onChange={(e) => setEditText(e.target.value)}
+      <div 
+        style={{ 
+          width: '100%', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '12px',
+          alignSelf: 'stretch',
+          background: 'transparent',
+          border: 'none',
+          padding: '0',
+          margin: '8px 0',
+        }}
+      >
+        <textarea
+          value={editText}
+          onChange={(e) => setEditText(e.target.value)}
+          style={{
+            width: '100%',
+            minHeight: '48px',
+            background: 'transparent',
+            border: '1px solid var(--border-color, #3c4043)',
+            borderRadius: '24px',
+            outline: 'none',
+            resize: 'none',
+            color: 'var(--text-primary)',
+            fontFamily: 'inherit',
+            fontSize: '14px',
+            lineHeight: '1.5',
+            padding: '12px 20px',
+            boxSizing: 'border-box',
+          }}
+        />
+        <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', alignItems: 'center', paddingRight: '8px' }}>
+          <button
+            onClick={() => setIsEditing(false)}
             style={{
-              width: '100%',
-              minHeight: '60px',
               background: 'transparent',
               border: 'none',
-              outline: 'none',
-              resize: 'vertical',
-              color: 'var(--text-primary)',
-              fontFamily: 'inherit',
-              fontSize: '14px',
-              lineHeight: '1.5',
+              color: '#ffffff',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              padding: '6px 12px',
             }}
-          />
-          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-            <button
-              onClick={() => setIsEditing(false)}
-              style={{
-                background: 'transparent',
-                border: '1px solid var(--border-color)',
-                color: 'var(--text-secondary)',
-                padding: '4px 12px',
-                borderRadius: '16px',
-                fontSize: '12px',
-                cursor: 'pointer',
-              }}
-            >
-              Cancel
-            </button>
-            <button
-              onClick={() => {
-                if (editText.trim()) {
-                  onEditMessage(msg.id, editText.trim());
-                  setIsEditing(false);
-                }
-              }}
-              style={{
-                background: 'var(--accent-blue)',
-                color: 'var(--bg-primary)',
-                border: 'none',
-                padding: '4px 12px',
-                borderRadius: '16px',
-                fontSize: '12px',
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-            >
-              Save & Submit
-            </button>
-          </div>
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => {
+              if (editText.trim() && isChanged) {
+                onEditMessage(msg.id, editText.trim());
+                setIsEditing(false);
+              }
+            }}
+            disabled={!isChanged || !editText.trim()}
+            style={{
+              background: isChanged && editText.trim() ? 'var(--red, #ea4335)' : '#2a2b2d',
+              color: isChanged && editText.trim() ? '#ffffff' : '#8e8e8e',
+              border: 'none',
+              padding: '8px 20px',
+              borderRadius: '20px',
+              fontSize: '13px',
+              fontWeight: 600,
+              cursor: isChanged && editText.trim() ? 'pointer' : 'default',
+            }}
+          >
+            Update
+          </button>
         </div>
       </div>
     );
@@ -339,7 +346,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     key={key}
                     style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}
                   >
-                    <span style={{ fontFamily: 'monospace', color: 'var(--accent-blue)' }}>
+                    <span style={{ fontFamily: 'monospace', color: 'var(--error-text, #f2b8b5)' }}>
                       {key}:
                     </span>
                     <span style={{ fontFamily: 'monospace', color: 'var(--text-primary)' }}>
