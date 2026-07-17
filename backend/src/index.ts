@@ -10,7 +10,6 @@ import couponsRoute from './routes/coupons';
 import matchRoute from './routes/match';
 import authRoute from './routes/auth';
 import threadsRoute from './routes/threads';
-import titleRoute from './routes/title';
 
 export { ChatAgent };
 
@@ -29,7 +28,6 @@ app.route('/api', couponsRoute);
 app.route('/api', matchRoute);
 app.route('/api', authRoute);
 app.route('/api', threadsRoute);
-app.route('/api', titleRoute);
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 

@@ -1,6 +1,6 @@
-import { AIChatAgent, ChatMessage } from "@cloudflare/ai-chat";
+import { AIChatAgent, OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { createWorkersAI } from "workers-ai-provider";
-import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream } from "ai";
+import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback } from "ai";
 import { Env } from "./db/schema";
 import { shoppingTools } from "./tools";
 
@@ -18,12 +18,22 @@ function buildSystemPrompt(canvas: any[]): string {
 
 export class ChatAgent extends AIChatAgent<Env> {
   async onChatMessage(
-    _onFinish?: (event: { message: ChatMessage }) => void,
-    options?: { body?: Record<string, unknown> }
+    _onFinish: GenerateTextOnEndCallback,
+    _options?: OnChatMessageOptions
   ) {
     const workersai = createWorkersAI({ binding: this.env.AI });
-    const modelName = (options?.body?.model as string) || DEFAULT_MODEL;
-    const canvas = options?.body?.canvas as any[] | undefined;
+    const modelName = (_options?.body?.model as string) || DEFAULT_MODEL;
+    const canvas = _options?.body?.canvas as any[] | undefined;
+
+    const isFirstTurn = this.messages.length <= 2;
+    const userMessage = isFirstTurn
+      ? this.messages
+          .filter(m => m.role === 'user')
+          .flatMap(m => m.parts.filter((p): p is { type: 'text'; text: string } => p.type === 'text'))
+          .map(p => p.text)
+          .join('')
+          .trim()
+      : '';
 
     const result = streamText({
       model: workersai(modelName),
@@ -33,6 +43,26 @@ export class ChatAgent extends AIChatAgent<Env> {
         toolCalls: "before-last-2-messages",
       }),
       tools: shoppingTools,
+      onFinish: async (event) => {
+        _onFinish?.(event);
+
+        if (userMessage) {
+          try {
+            const res: any = await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
+              messages: [
+                { role: 'system', content: 'Generate a concise title (max 6 words) for a shopping assistant chat based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation, no explanation.' },
+                { role: 'user', content: userMessage },
+              ],
+              max_tokens: 15,
+              temperature: 0.3,
+            });
+            const title = (res.response?.trim() || 'New Chat').replace(/^["']|["']$/g, '') || 'New Chat';
+            this.broadcast(JSON.stringify({ type: 'chat:title', title }));
+          } catch {
+            // Title generation failed — keep default "New Chat"
+          }
+        }
+      },
     });
 
     return createUIMessageStreamResponse({

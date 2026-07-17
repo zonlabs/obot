@@ -76,6 +76,10 @@ chrome.runtime.onMessage.addListener((
       sendResponse({ success: true });
     } else if (message.type === 'config:get') {
       sendResponse({ workerUrl: WORKER_URL });
+    } else if (message.type === 'jwt:get') {
+      chrome.storage.local.get('jwt', (result) => {
+        sendResponse({ jwt: result.jwt ?? null });
+      });
     } else if (message.type === 'auth:signin') {
       handleSignIn().then(sendResponse);
     } else if (message.type === 'auth:signout') {
