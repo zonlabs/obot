@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS price_history (
   timestamp TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_price_history_product ON price_history(product_key, timestamp);
+CREATE INDEX IF NOT EXISTS idx_price_history_product ON price_history(product_key, timestamp);
 
 CREATE TABLE IF NOT EXISTS watchlists (
   id INTEGER PRIMARY KEY AUTOINCREMENT,

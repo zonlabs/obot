@@ -11,8 +11,9 @@
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "declaration": false,
-    "types": ["chrome"]
+    "types": ["chrome"],
+    "jsx": "react-jsx"
   },
-  "include": ["extension/**/*.ts"],
+  "include": ["extension/**/*.ts", "extension/**/*.tsx"],
   "exclude": ["extension/dist"]
 }

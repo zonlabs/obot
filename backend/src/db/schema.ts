@@ -4,6 +4,7 @@ export interface Env {
   CACHE: KVNamespace;
   AI: Ai;
   ChatAgent: DurableObjectNamespace;
+  JWT_SECRET: string; // set via: wrangler secret put JWT_SECRET
 }
 
 export async function insertPriceHistory(

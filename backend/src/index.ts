@@ -9,6 +9,7 @@ import priceHistoryRoute from './routes/price-history';
 import couponsRoute from './routes/coupons';
 import matchRoute from './routes/match';
 import authRoute from './routes/auth';
+import threadsRoute from './routes/threads';
 
 export { ChatAgent };
 
@@ -16,8 +17,8 @@ const app = new Hono<{ Bindings: Env }>();
 
 app.use('/*', cors({
   origin: ['chrome-extension://*'],
-  allowMethods: ['GET', 'POST', 'OPTIONS'],
-  allowHeaders: ['Content-Type'],
+  allowMethods: ['GET', 'POST', 'DELETE', 'OPTIONS'],
+  allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
 app.route('/api', chatRoute);
@@ -26,14 +27,15 @@ app.route('/api', priceHistoryRoute);
 app.route('/api', couponsRoute);
 app.route('/api', matchRoute);
 app.route('/api', authRoute);
+app.route('/api', threadsRoute);
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
 function corsify(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');
-  headers.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  headers.set('Access-Control-Allow-Headers', 'Content-Type');
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, DELETE, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   return new Response(response.body, {
     status: response.status,
     statusText: response.statusText,
@@ -47,8 +49,8 @@ export default {
       return new Response(null, {
         headers: {
           'Access-Control-Allow-Origin': '*',
-          'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-          'Access-Control-Allow-Headers': 'Content-Type',
+          'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization',
         },
       });
     }

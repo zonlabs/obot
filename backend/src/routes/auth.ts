@@ -1,8 +1,12 @@
 import { Hono } from 'hono';
 import { Env } from '../db/schema';
+import { signJWT, verifyJWT } from '../utils/jwt';
 
 const app = new Hono<{ Bindings: Env }>();
 
+// ── POST /api/auth/google ─────────────────────────────────────────────────────
+// Accepts a Google OAuth access token, verifies it, upserts the user in D1,
+// and returns a self-signed JWT (no session row needed).
 app.post('/auth/google', async (c) => {
   try {
     let body: any;
@@ -13,11 +17,9 @@ app.post('/auth/google', async (c) => {
     }
 
     const { token } = body;
-    if (!token) {
-      return c.json({ error: 'Missing token' }, 400);
-    }
+    if (!token) return c.json({ error: 'Missing token' }, 400);
 
-    // Verify token with Google userinfo endpoint
+    // Verify with Google userinfo endpoint (one-time, only at sign-in)
     const verifyRes = await fetch(
       'https://www.googleapis.com/oauth2/v3/userinfo',
       { headers: { Authorization: `Bearer ${token}` } }
@@ -26,48 +28,46 @@ app.post('/auth/google', async (c) => {
     if (!verifyRes.ok) {
       const errText = await verifyRes.text().catch(() => '');
       console.error('Google token verification failed', verifyRes.status, errText.slice(0, 500));
-      return c.json({
-        error: `Google sign-in failed`,
-        detail: { status: verifyRes.status, body: errText.slice(0, 200) }
-      }, 401);
+      return c.json({ error: 'Google sign-in failed', detail: { status: verifyRes.status } }, 401);
     }
 
     const googleUser: any = await verifyRes.json();
-    if (!googleUser.email) {
-      return c.json({ error: 'Email not available from Google' }, 401);
-    }
+    if (!googleUser.email) return c.json({ error: 'Email not available from Google' }, 401);
 
-    const name = googleUser.name || googleUser.email.split('@')[0];
+    const name    = googleUser.name    || googleUser.email.split('@')[0];
     const picture = googleUser.picture || null;
 
-    // Upsert user
+    // Upsert user in D1 (only for user records — no session row)
     const existing: any = await c.env.DB.prepare(
-      'SELECT id, email, name, picture, plan FROM users WHERE email = ?'
+      'SELECT id, plan FROM users WHERE email = ?'
     ).bind(googleUser.email).first();
 
     let userId: string;
+    let plan: string;
+
     if (existing) {
       userId = existing.id;
-      // Update name/picture on each sign-in
+      plan   = existing.plan ?? 'free';
       await c.env.DB.prepare(
         'UPDATE users SET name = ?, picture = ? WHERE id = ?'
       ).bind(name, picture, userId).run();
     } else {
       userId = crypto.randomUUID();
+      plan   = 'free';
       await c.env.DB.prepare(
         'INSERT INTO users (id, email, name, picture, plan) VALUES (?, ?, ?, ?, ?)'
-      ).bind(userId, googleUser.email, name, picture, 'free').run();
+      ).bind(userId, googleUser.email, name, picture, plan).run();
     }
 
-    // Create session
-    const sessionId = crypto.randomUUID();
-    await c.env.DB.prepare(
-      'INSERT INTO sessions (id, user_id) VALUES (?, ?)'
-    ).bind(sessionId, userId).run();
+    // Issue a self-signed JWT — no session row, stateless
+    const jwt = await signJWT(
+      { sub: userId, email: googleUser.email, name, picture, plan },
+      c.env.JWT_SECRET,
+    );
 
     return c.json({
-      sessionId,
-      user: { id: userId, email: googleUser.email, name, picture, plan: 'free' }
+      jwt,
+      user: { id: userId, email: googleUser.email, name, picture, plan },
     });
   } catch (err) {
     console.error('Auth error:', err);
@@ -75,23 +75,31 @@ app.post('/auth/google', async (c) => {
   }
 });
 
-app.post('/auth/logout', async (c) => {
-  const { sessionId } = await c.req.json();
-  if (!sessionId) return c.json({ error: 'Missing sessionId' }, 400);
-
-  await c.env.DB.prepare('DELETE FROM sessions WHERE id = ?').bind(sessionId).run();
-  return c.json({ success: true });
+// ── POST /api/auth/logout ─────────────────────────────────────────────────────
+// Stateless — client just discards the JWT. Nothing to do server-side.
+app.post('/auth/logout', async (_c) => {
+  return _c.json({ success: true });
 });
 
+// ── GET /api/auth/me ──────────────────────────────────────────────────────────
+// Validates the JWT from the Authorization header and returns the user claims.
 app.get('/auth/me', async (c) => {
-  const sessionId = c.req.header('x-session-id');
-  if (!sessionId) return c.json({ user: null });
+  const authHeader = c.req.header('authorization') ?? '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!token) return c.json({ user: null });
 
-  const session = await c.env.DB.prepare(
-    `SELECT u.id, u.email, u.plan FROM sessions s JOIN users u ON s.user_id = u.id WHERE s.id = ?`
-  ).bind(sessionId).first<{ id: string; email: string; plan: string }>();
+  const claims = await verifyJWT(token, c.env.JWT_SECRET);
+  if (!claims) return c.json({ user: null });
 
-  return c.json({ user: session || null });
+  return c.json({
+    user: {
+      id:      claims.sub,
+      email:   claims.email,
+      name:    claims.name,
+      picture: claims.picture,
+      plan:    claims.plan,
+    },
+  });
 });
 
 export default app;

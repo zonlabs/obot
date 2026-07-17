@@ -148,9 +148,11 @@ function buildProductData(): ProductData | null {
 }
 
 function injectDebugBadge(text: string): void {
+  if (typeof document === 'undefined' || !document.body || !document.createElement) return;
   const existing = document.getElementById('shop-mate-debug');
   if (existing) { existing.textContent = text; return; }
   const el = document.createElement('div');
+  if (!el || !el.style) return;
   el.id = 'shop-mate-debug';
   el.style.cssText = 'position:fixed;bottom:4px;right:4px;z-index:99999;background:#E53935;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:4px;pointer-events:none;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
   el.textContent = text;
@@ -159,27 +161,32 @@ function injectDebugBadge(text: string): void {
 
 console.log('[Shop Mate] Content script loaded on:', window.location.href);
 
-const isProduct = isProductPage();
-console.log('[Shop Mate] isProductPage:', isProduct);
-injectDebugBadge(`Shop Mate: ${isProduct ? 'product page' : 'not a product page'}`);
+if (typeof document !== 'undefined' && document.body && document.createElement) {
+  const tempEl = document.createElement('div');
+  if (tempEl && tempEl.style) {
+    const isProduct = isProductPage();
+    console.log('[Shop Mate] isProductPage:', isProduct);
+    injectDebugBadge(`Shop Mate: ${isProduct ? 'product page' : 'not a product page'}`);
 
-if (isProduct) {
-  console.log('[Shop Mate] Running product extractors...');
-  const schema = extractSchemaOrg();
-  console.log('[Shop Mate] Schema.org result:', schema);
-  const meta = extractMetaTags();
-  console.log('[Shop Mate] Meta tags result:', meta);
-  const dom = extractDOMHeuristics();
-  console.log('[Shop Mate] DOM heuristics result:', dom);
+    if (isProduct) {
+      console.log('[Shop Mate] Running product extractors...');
+      const schema = extractSchemaOrg();
+      console.log('[Shop Mate] Schema.org result:', schema);
+      const meta = extractMetaTags();
+      console.log('[Shop Mate] Meta tags result:', meta);
+      const dom = extractDOMHeuristics();
+      console.log('[Shop Mate] DOM heuristics result:', dom);
 
-  const product = buildProductData();
-  console.log('[Shop Mate] Built product data:', product);
-  injectDebugBadge(`Shop Mate: ${product?.name?.slice(0, 40) || 'no product'} — ${product?.currency || ''}${product?.price || 0}`);
+      const product = buildProductData();
+      console.log('[Shop Mate] Built product data:', product);
+      injectDebugBadge(`Shop Mate: ${product?.name?.slice(0, 40) || 'no product'} — ${product?.currency || ''}${product?.price || 0}`);
 
-  if (product && product.price > 0) {
-    console.log('[Shop Mate] Sending product:detected message');
-    chrome.runtime.sendMessage({ type: 'product:detected', data: product });
-  } else {
-    console.log('[Shop Mate] Product rejected — price:', product?.price);
+      if (product && product.price > 0) {
+        console.log('[Shop Mate] Sending product:detected message');
+        chrome.runtime.sendMessage({ type: 'product:detected', data: product });
+      } else {
+        console.log('[Shop Mate] Product rejected — price:', product?.price);
+      }
+    }
   }
 }

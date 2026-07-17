@@ -6,8 +6,9 @@
     "watch": "esbuild side-panel/main.tsx --bundle --outfile=side-panel/dist/app.js --loader:.tsx=tsx --watch"
   },
   "dependencies": {
-    "agents": "^0.17.4",
     "@cloudflare/ai-chat": "^0.9.3",
+    "agents": "^0.17.4",
+    "lucide-react": "^1.25.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
   },

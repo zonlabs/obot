@@ -24,8 +24,10 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
 // Remove product data when tab closes
 chrome.tabs.onRemoved.addListener((tabId) => {
   delete canvas.tabs[tabId];
-  saveCanvas();
-  updateBadge();
+  saveCanvas().then(() => {
+    updateBadge();
+    chrome.runtime.sendMessage({ type: 'canvas:updated' }).catch(() => {});
+  });
 });
 
 // Listen for product data from content script
@@ -38,8 +40,10 @@ chrome.runtime.onMessage.addListener((
     console.log('[SW] Received product:detected from tab', tabId, message.data?.name);
     ready.then(() => {
       canvas.tabs[tabId] = message.data as ProductData;
-      saveCanvas();
-      updateBadge();
+      saveCanvas().then(() => {
+        updateBadge();
+        chrome.runtime.sendMessage({ type: 'canvas:updated' }).catch(() => {});
+      });
       console.log('[SW] Canvas now has', Object.keys(canvas.tabs).length, 'products');
       logPriceHistory(message.data as ProductData).catch(() => {});
     });
@@ -58,9 +62,7 @@ chrome.runtime.onMessage.addListener((
   sendResponse: (response: any) => void
 ) => {
   ready.then(() => {
-    if (message.type === 'chat:send') {
-      handleChat(message.prompt).then(sendResponse);
-    } else if (message.type === 'canvas:get') {
+    if (message.type === 'canvas:get') {
       sendResponse({ canvas: Object.values(canvas.tabs) });
       console.log('[SW] canvas:get returned', Object.values(canvas.tabs).length, 'products');
     } else if (message.type === 'canvas:remove') {
@@ -102,7 +104,7 @@ async function handleSignIn(): Promise<{ user: any } | { error: string }> {
     }
 
     const data = await res.json();
-    await chrome.storage.local.set({ sessionId: data.sessionId, user: data.user });
+    await chrome.storage.local.set({ jwt: data.jwt, user: data.user });
     return { user: data.user };
   } catch (err) {
     return { error: 'Sign-in cancelled or failed' };
@@ -110,15 +112,8 @@ async function handleSignIn(): Promise<{ user: any } | { error: string }> {
 }
 
 async function handleSignOut(): Promise<{ success: boolean }> {
-  const { sessionId } = await chrome.storage.local.get('sessionId');
-  if (sessionId) {
-    await fetch(`${WORKER_URL}/api/auth/logout`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sessionId }),
-    }).catch(() => {});
-  }
-  await chrome.storage.local.remove(['sessionId', 'user']);
+  // JWT is stateless — just discard it locally. No server call needed.
+  await chrome.storage.local.remove(['jwt', 'user']);
   // Revoke the Chrome identity token
   const authResult = await new Promise<{ token?: string }>((resolve) => {
     chrome.identity.getAuthToken({ interactive: false }, (t) => resolve({ token: t.token }));
@@ -134,37 +129,6 @@ async function checkAuthStatus(): Promise<{ user: any }> {
   return { user: user || null };
 }
 
-async function handleChat(prompt: string): Promise<ChatResponse> {
-  const sessionId = await getOrCreateSessionId();
-  const products = Object.values(canvas.tabs);
-
-  const request: ChatRequest = { prompt, canvas: products, sessionId };
-
-  try {
-    const res = await fetch(`${WORKER_URL}/api/chat`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(request),
-    });
-
-    if (!res.ok) {
-      return { message: 'Sorry, I had trouble answering that. Please try again.', structured: null };
-    }
-
-    return await res.json();
-  } catch {
-    return { message: 'Network error. Make sure you\'re connected to the internet.', structured: null };
-  }
-}
-
-async function getOrCreateSessionId(): Promise<string> {
-  const { sessionId } = await chrome.storage.local.get('sessionId');
-  if (sessionId) return sessionId as string;
-
-  const newId = crypto.randomUUID();
-  await chrome.storage.local.set({ sessionId: newId });
-  return newId;
-}
 
 function updateBadge(): void {
   const count = Object.keys(canvas.tabs).length;
