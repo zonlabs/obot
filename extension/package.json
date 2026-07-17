@@ -1,0 +1,17 @@
+{
+  "name": "shop-mate-extension",
+  "private": true,
+  "scripts": {
+    "build": "esbuild side-panel/main.tsx --bundle --outfile=side-panel/dist/app.js --loader:.tsx=tsx --define:process.env.NODE_ENV=\\\"production\\\"",
+    "watch": "esbuild side-panel/main.tsx --bundle --outfile=side-panel/dist/app.js --loader:.tsx=tsx --watch"
+  },
+  "dependencies": {
+    "agents": "^0.17.4",
+    "@cloudflare/ai-chat": "^0.9.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

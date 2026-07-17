@@ -1,0 +1,14 @@
+{
+  "name": "shop-assistant",
+  "private": true,
+  "scripts": {
+    "build:ext": "tsc -p extension/tsconfig.json",
+    "build:worker": "cd backend && npx wrangler deploy",
+    "dev:worker": "cd backend && npx wrangler dev",
+    "migrate": "cd backend && npx wrangler d1 execute shop-assistant-db --file=migrations/001_init.sql"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.2.2",
+    "typescript": "^7.0.2"
+  }
+}
