@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
-import { SquarePen, MoreVertical, ExternalLink, X, User } from 'lucide-react';
+import { SquarePen, MoreVertical, PictureInPicture2, User, X } from 'lucide-react';
 
 import { HistoryPopup } from './components/HistoryPopup';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -158,6 +158,29 @@ function ChatView(props: ChatViewProps) {
     agent,
     body: { model, canvas: selectedProducts },
   });
+
+  const popoutMode = new URLSearchParams(window.location.search).has('popout');
+
+  const handleTogglePopout = useCallback(() => {
+    if (popoutMode) {
+      const params = new URLSearchParams(window.location.search);
+      const tabId = parseInt(params.get('tabId') || '0', 10);
+      if (tabId) {
+        chrome.runtime.sendMessage({ type: 'sidePanel:open', tabId }, () => {
+          window.close();
+        });
+      } else {
+        window.close();
+      }
+    } else {
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const tabId = tabs[0]?.id || 0;
+        const url = chrome.runtime.getURL(`side-panel/index.html?popout=true&tabId=${tabId}`);
+        window.open(url, 'Obot', 'width=450,height=600,menubar=no,toolbar=no,location=no,status=no');
+        window.close();
+      });
+    }
+  }, [popoutMode]);
 
   const [pendingEdit, setPendingEdit] = useState<{ text: string } | null>(null);
 
@@ -326,11 +349,8 @@ function ChatView(props: ChatViewProps) {
             )}
           </div>
 
-          <button className="header-icon-btn" title="Open in new tab">
-            <ExternalLink size={18} />
-          </button>
-          <button className="header-icon-btn" title="Close" onClick={() => window.close()}>
-            <X size={18} />
+          <button className="header-icon-btn" title={popoutMode ? 'Attach to sidebar' : 'Pop out chat'} onClick={handleTogglePopout}>
+            <PictureInPicture2 size={18} />
           </button>
         </div>
       </header>

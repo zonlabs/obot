@@ -97,6 +97,10 @@ chrome.runtime.onMessage.addListener((
       handleSignOut().then(sendResponse);
     } else if (message.type === 'auth:status') {
       checkAuthStatus().then(sendResponse);
+    } else if (message.type === 'sidePanel:open') {
+      const tabId = message.tabId as number;
+      if (tabId) chrome.sidePanel.open({ tabId });
+      sendResponse({ success: true });
     }
   });
   return true;

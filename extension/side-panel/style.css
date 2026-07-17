@@ -37,6 +37,9 @@ body {
   flex-direction: column;
   height: 100vh;
   overflow: hidden;
+  max-width: 896px;
+  margin: 0 auto;
+  width: 100%;
 }
 
 /* Scrollbar Styling */
@@ -390,23 +393,12 @@ body {
   padding-left: 4px;
 }
 
-/* Sharing Banner (above Input Area) */
+/* ── Input inner wrapper (no border/gradient — parent has it) ── */
 #input-capsule-wrapper {
   position: relative;
   display: flex;
   flex-direction: column;
-  border: 1px solid transparent;
-  background: linear-gradient(var(--bg-input, #1e1f20), var(--bg-input, #1e1f20)) padding-box,
-              linear-gradient(to right, #ea4335, #000000) border-box;
-  border-radius: 12px;
-  background-size: 100% 100%, 100% 100%;
-}
-
-#input-capsule-wrapper.streaming {
-  background: linear-gradient(var(--bg-input, #1e1f20), var(--bg-input, #1e1f20)) padding-box,
-              linear-gradient(to right, #ea4335, #000000, #ea4335) border-box;
-  background-size: 100% 100%, 200% 100%;
-  animation: border-shimmer 2s linear infinite;
+  padding: 0 6px 6px;
 }
 
 @keyframes border-shimmer {
@@ -421,98 +413,107 @@ body {
   }
 }
 
-/* Child 1: Chip UI (selected tabs) — floats above the input bubble */
-#context-chips {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  position: relative;
-  z-index: 2;
-}
-
-.chips-row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px;
-}
-
-.context-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  max-width: 200px;
-  padding: 4px 6px 4px 5px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 999px;
+/* ── Unified Input Container (with gradient border) ── */
+#input-outer-container {
+  border: 1px solid transparent;
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+              linear-gradient(to right, #ea4335, #000000) border-box;
+  border-radius: 12px;
+  background-size: 100% 100%, 100% 100%;
   flex-shrink: 0;
+  margin: 0 10px 10px;
 }
 
-.context-chip-icon {
+#input-outer-container.streaming {
+  background: linear-gradient(var(--bg-primary), var(--bg-primary)) padding-box,
+              linear-gradient(to right, #ea4335, #000000, #ea4335) border-box;
+  background-size: 100% 100%, 200% 100%;
+  animation: border-shimmer 2s linear infinite;
+}
+
+/* ── Header Row ── */
+.input-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 10px 4px;
+  min-height: 32px;
+}
+
+.input-header-left {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.input-header-favicon {
   width: 16px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: 2px;
   flex-shrink: 0;
 }
 
-.context-chip-label {
-  font-size: 12px;
-  color: var(--text-secondary);
-  overflow: hidden;
-  text-overflow: ellipsis;
+.input-header-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
   white-space: nowrap;
 }
 
-.context-chip-remove {
+.input-header-chevron {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.input-header-chevron:hover {
+  color: var(--text-primary);
+}
+
+.input-header-icon-btn {
   background: transparent;
   border: none;
   color: var(--text-muted);
   cursor: pointer;
   display: flex;
   align-items: center;
-  padding: 0;
-  margin-left: 2px;
-  border-radius: 50%;
-}
-
-.context-chip-remove:hover {
-  color: var(--text-primary);
-}
-
-.context-chip-more {
-  padding: 4px 10px;
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-}
-
-.chips-expand {
-  background: transparent;
-  border: 1px solid var(--border-color);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
-  border-radius: 999px;
+  padding: 2px;
   flex-shrink: 0;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  transition: color 0.15s;
 }
 
-.chips-expand:hover {
-  background: var(--bg-hover);
+.input-header-icon-btn:hover {
   color: var(--text-primary);
-  border-color: var(--text-secondary);
+}
+
+/* ── Collapsible Detail Panel ── */
+#selected-detail-collapsible {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.2s ease;
+  min-height: 0;
+}
+
+#input-outer-container.expanded #selected-detail-collapsible {
+  grid-template-rows: 1fr;
+}
+
+#selected-detail-collapsible-inner {
+  min-height: 0;
+  overflow: hidden;
 }
 
 #selected-detail {
-  border: 1px solid var(--border-color);
-  border-radius: 10px;
-  background: var(--bg-secondary);
-  padding: 6px;
+  padding: 0 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -520,36 +521,59 @@ body {
   overflow-y: auto;
 }
 
-.chips-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
-  white-space: nowrap;
-}
-
-.selected-detail-header {
-  padding: 2px 4px 4px;
-  font-size: 10px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-}
-
-/* Input Area (parent: chip UI layer + chat-input bubble) */
-#input-outer-container {
-  padding: 6px 10px 10px;
-  background: var(--bg-primary);
-  flex-shrink: 0;
+.detail-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
+  padding: 4px 0;
+}
+
+.detail-row-favicon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.detail-row-title {
+  font-size: 13px;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.detail-row-remove {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  transition: color 0.15s;
+}
+
+.detail-row-remove:hover {
+  color: var(--text-primary);
+}
+
+/* ── Divider ── */
+.input-divider {
+  height: 1px;
+  background: var(--border-color);
+  margin: 0 10px 2px;
 }
 
 #input-capsule {
   background: transparent;
   border: none;
-  padding: 10px 14px 8px 14px;
+  padding: 4px 4px 4px 4px;
   display: flex;
   flex-direction: column;
 }
@@ -852,8 +876,6 @@ body {
 }
 
 .popup-item.active {
-  background: var(--bg-hover);
-  border: 1px solid var(--red);
 }
 
 .popup-item-icon {

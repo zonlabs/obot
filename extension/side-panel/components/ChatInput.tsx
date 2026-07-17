@@ -160,55 +160,59 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   const selectedTabs = products.filter((p: any) => selectedUrls.includes(p.url));
 
   return (
-    <div id="input-outer-container">
-      {/* ── Child 1: Chip UI (selected tabs) — floats above the input ── */}
+    <div id="input-outer-container" className={`${showSelected && selectedUrls.length > 0 ? 'expanded' : ''} ${isStreaming ? 'streaming' : ''}`}>
+      {/* ── Header row (always visible when tabs selected) ── */}
       {selectedUrls.length > 0 && (
-        <div id="context-chips">
-          <div className="chips-row">
-            <span className="chips-text">
+        <div className="input-header-row">
+          <div className="input-header-left">
+            {!showSelected && selectedTabs.slice(0, 3).map((p: any) => (
+              <Favicon key={p.url} url={p.url} size={16} className="input-header-favicon" />
+            ))}
+            <span className="input-header-text">
               Sharing {selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''}
             </span>
-            <button
-              className="chips-expand"
-              title={showSelected ? 'Hide selected tabs' : 'Show selected tabs'}
-              onClick={() => { setShowPopup(false); setShowSelected(!showSelected); }}
-            >
-              <ChevronIcon isUp={showSelected} />
-            </button>
           </div>
-
-          {showSelected && (
-            <div id="selected-detail">
-              <div className="selected-detail-header">Selected Tabs · {selectedTabs.length}</div>
-              {selectedTabs.map((p: any) => (
-                <div key={p.url} className="popup-item active">
-                  <Favicon url={p.url} size={20} className="popup-item-icon" />
-                  <div className="popup-item-info">
-                    <div className="popup-item-name">
-                      {p.title || p.url}
-                      {p.active && (
-                        <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
-                      )}
-                    </div>
-                    <div className="popup-item-store">{p.product?.store || safeUrl(p.url)}</div>
-                  </div>
-                  <button
-                    className="popup-item-remove"
-                    title="Remove tab"
-                    onClick={() => onToggleUrl(p.url)}
-                    style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px' }}
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+          <button
+            className="input-header-chevron"
+            title={showSelected ? 'Hide selected tabs' : 'Show selected tabs'}
+            onClick={() => { setShowPopup(false); setShowSelected(!showSelected); }}
+          >
+            <ChevronIcon isUp={showSelected} />
+          </button>
         </div>
       )}
 
-      {/* ── Child 2: Chat Input bubble ── */}
-      <div id="input-capsule-wrapper" className={isStreaming ? 'streaming' : ''}>
+      {/* ── Collapsible detail panel ── */}
+      <div id="selected-detail-collapsible">
+        <div id="selected-detail-collapsible-inner">
+          {showSelected && selectedUrls.length > 0 && (
+            <>
+              <div id="selected-detail">
+                {selectedTabs.map((p: any) => (
+                  <div key={p.url} className="detail-row">
+                    <Favicon url={p.url} size={18} className="detail-row-favicon" />
+                    <span className="detail-row-title">{p.title || p.url}</span>
+                    {p.active && (
+                      <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
+                    )}
+                    <button
+                      className="detail-row-remove"
+                      title="Remove tab"
+                      onClick={() => onToggleUrl(p.url)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="input-divider" />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* ── Textarea section ── */}
+      <div id="input-capsule-wrapper">
 
         {/* ── Tab Attach Popup ── */}
         {showPopup && (
