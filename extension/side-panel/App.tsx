@@ -119,7 +119,7 @@ function ChatView(props: ChatViewProps) {
     onIdentityChange: () => {},
   });
 
-  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory } = useAgentChat({
+  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, reload, setMessages } = useAgentChat({
     agent,
     body: { model, canvas: selectedProducts },
   });
@@ -182,6 +182,28 @@ function ChatView(props: ChatViewProps) {
       inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
     }
   }, [setInputValue, inputRef]);
+
+  const handleEditMessage = useCallback((messageId: string, newText: string) => {
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === messageId);
+      if (idx === -1) return prev;
+      
+      const updatedMessage = {
+        ...prev[idx],
+        parts: prev[idx].parts.map((p: any) => 
+          p.type === 'text' ? { ...p, text: newText } : p
+        )
+      };
+      
+      const updated = [...prev.slice(0, idx), updatedMessage];
+      
+      setTimeout(() => {
+        reload();
+      }, 50);
+      
+      return updated;
+    });
+  }, [setMessages, reload]);
 
   // ── Scroll to bottom on new messages ──
   const scrollToBottom = useCallback(() => {
@@ -267,6 +289,8 @@ function ChatView(props: ChatViewProps) {
               isLast={idx === messages.length - 1}
               isStreaming={isStreaming}
               addToolApprovalResponse={addToolApprovalResponse}
+              onRegenerate={reload}
+              onEditMessage={handleEditMessage}
             />
           ))
         )}
@@ -286,6 +310,7 @@ function ChatView(props: ChatViewProps) {
         isStreaming={isStreaming}
         onSubmit={handleSubmit}
         onKeyDown={handleKeyDown}
+        onStop={stop}
         showPopup={showPopup}
         setShowPopup={setShowPopup}
         attachPopupRef={attachPopupRef}

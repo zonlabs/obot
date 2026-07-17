@@ -1,6 +1,6 @@
 import { AIChatAgent, OnChatMessageOptions } from "@cloudflare/ai-chat";
 import { createWorkersAI } from "workers-ai-provider";
-import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback } from "ai";
+import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount } from "ai";
 import { Env } from "./db/schema";
 import { shoppingTools } from "./tools";
 
@@ -43,6 +43,7 @@ export class ChatAgent extends AIChatAgent<Env> {
         toolCalls: "before-last-2-messages",
       }),
       tools: shoppingTools,
+      stopWhen: isStepCount(5),
       onFinish: async (event) => {
         _onFinish?.(event);
 

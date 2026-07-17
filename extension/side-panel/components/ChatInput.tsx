@@ -1,5 +1,5 @@
 import React, { RefObject } from 'react';
-import { Plus, ChevronDown, Check } from 'lucide-react';
+import { Plus, ChevronDown, Check, ArrowUp, Square } from 'lucide-react';
 
 /* ── small local helpers ── */
 const CircleCheckIcon = () => (
@@ -67,6 +67,7 @@ interface ChatInputProps {
   selectedModelLabel: string;
   selectedModelIcon: string;
   onSelectModel: (val: string) => void;
+  onStop: () => void;
 }
 
 const safeUrl = (url: string) => {
@@ -96,10 +97,11 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   selectedModelLabel,
   selectedModelIcon,
   onSelectModel,
+  onStop,
 }) => {
   return (
     <div id="input-outer-container">
-      <div id="input-capsule-wrapper" style={{ position: 'relative', border: '1px solid var(--input-border)' }}>
+      <div id="input-capsule-wrapper" className={isStreaming ? 'streaming' : ''}>
 
         {/* ── Product Attach Popup ── */}
         {showPopup && (
@@ -197,7 +199,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             </div>
 
             {/* Right: model selector */}
-            <div className="input-right-actions">
+            <div className="input-right-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <div className="model-dropdown-wrapper" ref={modelDropdownRef}>
                 <button
                   className="model-dropdown-trigger-btn"
@@ -249,6 +251,49 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   </div>
                 )}
               </div>
+
+              {isStreaming ? (
+                <button
+                  className="submit-btn active"
+                  title="Stop generating"
+                  onClick={onStop}
+                  style={{
+                    backgroundColor: 'var(--red, #ea4335)',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <Square size={10} fill="#ffffff" stroke="none" />
+                </button>
+              ) : (
+                <button
+                  className={`submit-btn ${inputValue.trim() ? 'active' : ''}`}
+                  title="Send message"
+                  onClick={onSubmit}
+                  disabled={!inputValue.trim()}
+                  style={{
+                    borderRadius: '50%',
+                    width: '28px',
+                    height: '28px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    border: 'none',
+                    backgroundColor: inputValue.trim() ? '#ffffff' : 'transparent',
+                    color: inputValue.trim() ? '#131314' : '#8e8e8e',
+                    cursor: inputValue.trim() ? 'pointer' : 'default',
+                  }}
+                >
+                  <ArrowUp size={14} strokeWidth={2.5} />
+                </button>
+              )}
             </div>
           </div>
         </div>

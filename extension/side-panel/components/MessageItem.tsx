@@ -1,13 +1,140 @@
-import React from 'react';
-import { Wrench, RotateCw, Copy, MoreVertical } from 'lucide-react';
+import React, { useState } from 'react';
+import { Wrench, RotateCw, Copy, MoreVertical, List, ChevronDown, ChevronUp, Pencil, Check } from 'lucide-react';
 import { getToolApproval } from '@cloudflare/ai-chat/react';
 import { renderMarkdown } from '../utils/markdown';
+
+interface ToolCallAccordionProps {
+  part: any;
+}
+
+const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  let statusText = 'Completed';
+  let statusClass = 'completed';
+
+  if (part.state === 'output-available') {
+    statusText = 'Completed';
+    statusClass = 'completed';
+  } else if (part.state === 'output-error') {
+    statusText = 'Failed';
+    statusClass = 'failed';
+  } else if (part.state === 'approval-requested') {
+    statusText = 'Waiting approval';
+    statusClass = 'waiting';
+  } else if (part.state === 'input-streaming') {
+    statusText = 'Executing...';
+    statusClass = 'executing';
+  } else {
+    statusText = 'Executing...';
+    statusClass = 'executing';
+  }
+
+  const argsString = JSON.stringify(part.input || part.args || {}, null, 2);
+  const resultString = part.output !== undefined 
+    ? (typeof part.output === 'object' ? JSON.stringify(part.output, null, 2) : String(part.output))
+    : '';
+
+  const renderResult = () => {
+    if (part.state === 'output-error') {
+      return (
+        <pre className="tool-call-code" style={{ color: '#ff6b6b', borderColor: 'rgba(255, 107, 107, 0.2)' }}>
+          {resultString || 'Error executing tool.'}
+        </pre>
+      );
+    }
+
+    if (part.toolName === 'findDeals' && part.output) {
+      const d = part.output as any;
+      return (
+        <div
+          className="deal-card"
+          onClick={() => {
+            const q = `${d.deal} ${d.store} ${d.category}`;
+            window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
+          }}
+        >
+          <div className="deal-badge">{d.deal}</div>
+          <div className="deal-store">{d.store}</div>
+          <div className="deal-category">
+            {d.category}{d.maxPrice !== 'No limit' ? ` · up to $${d.maxPrice}` : ''}
+          </div>
+          <div className="deal-details">{d.details}</div>
+        </div>
+      );
+    }
+
+    if (part.toolName === 'getProductDetails' && part.output) {
+      const p = part.output as any;
+      return (
+        <div className="product-detail-card">
+          <div className="pd-name">{p.name}</div>
+          <div className="pd-meta">{p.store} · {p.price} · {p.rating}</div>
+          <div className="pd-desc">{p.description}</div>
+        </div>
+      );
+    }
+
+    if (part.toolName === 'compareProducts' && part.output) {
+      const c = part.output as any;
+      return (
+        <div className="compare-card">
+          <div className="compare-header">Comparison</div>
+          <div className="compare-products">{c.products?.join(' vs ')}</div>
+          <div className="compare-text">{c.comparison}</div>
+        </div>
+      );
+    }
+
+    return (
+      <pre className="tool-call-code">
+        {resultString}
+      </pre>
+    );
+  };
+
+  return (
+    <div className="tool-call-accordion">
+      <div className="tool-call-header" onClick={() => setIsOpen(!isOpen)}>
+        <div className="tool-call-header-left">
+          <div className="tool-call-icon">
+            <List size={16} />
+          </div>
+          <div className="tool-call-title-container">
+            <span className="tool-call-name">{part.toolName}</span>
+            <span className={`tool-call-status ${statusClass}`}>{statusText}</span>
+          </div>
+        </div>
+        <div className="tool-call-chevron">
+          {isOpen ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="tool-call-content">
+          <div>
+            <div className="tool-call-section-title">Arguments</div>
+            <pre className="tool-call-code">{argsString}</pre>
+          </div>
+          {resultString && (
+            <div>
+              <div className="tool-call-section-title">Result</div>
+              {renderResult()}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
 
 interface MessageItemProps {
   msg: any;
   isLast: boolean;
   isStreaming: boolean;
   addToolApprovalResponse: (response: { id: string; approved: boolean }) => void;
+  onRegenerate: () => void;
+  onEditMessage: (messageId: string, newText: string) => void;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -15,10 +142,121 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   isLast,
   isStreaming,
   addToolApprovalResponse,
-}) => {
+  onRegenerate,
+  onEditMessage,
+ }) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editText, setEditText] = useState('');
+  const [copied, setCopied] = useState(false);
+
+  const handleCopy = () => {
+    const text = msg.parts
+      .filter((p: any) => p.type === 'text')
+      .map((p: any) => p.text)
+      .join('\n');
+    
+    const fallbackCopy = (t: string) => {
+      const textArea = document.createElement("textarea");
+      textArea.value = t;
+      textArea.style.position = "fixed";
+      document.body.appendChild(textArea);
+      textArea.focus();
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      } catch (err) {
+        console.error('Fallback: unable to copy', err);
+      }
+      document.body.removeChild(textArea);
+    };
+
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text).then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }).catch(() => {
+        fallbackCopy(text);
+      });
+    } else {
+      fallbackCopy(text);
+    }
+  };
   const hasText = msg.parts.some((p: any) => p.type === 'text' && p.text?.trim());
   const showFeedback =
     msg.role === 'assistant' && hasText && !(isLast && isStreaming);
+
+  if (isEditing) {
+    return (
+      <div className={`message ${msg.role}`} style={{ width: '100%' }}>
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '8px',
+          width: '100%',
+          background: 'var(--bg-secondary)',
+          border: '1px solid var(--border-color)',
+          borderRadius: '12px',
+          padding: '12px',
+          boxSizing: 'border-box'
+        }}>
+          <textarea
+            value={editText}
+            onChange={(e) => setEditText(e.target.value)}
+            style={{
+              width: '100%',
+              minHeight: '60px',
+              background: 'transparent',
+              border: 'none',
+              outline: 'none',
+              resize: 'vertical',
+              color: 'var(--text-primary)',
+              fontFamily: 'inherit',
+              fontSize: '14px',
+              lineHeight: '1.5',
+            }}
+          />
+          <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+            <button
+              onClick={() => setIsEditing(false)}
+              style={{
+                background: 'transparent',
+                border: '1px solid var(--border-color)',
+                color: 'var(--text-secondary)',
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                cursor: 'pointer',
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                if (editText.trim()) {
+                  onEditMessage(msg.id, editText.trim());
+                  setIsEditing(false);
+                }
+              }}
+              style={{
+                background: 'var(--accent-blue)',
+                color: 'var(--bg-primary)',
+                border: 'none',
+                padding: '4px 12px',
+                borderRadius: '16px',
+                fontSize: '12px',
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              Save & Submit
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className={`message ${msg.role}`}>
@@ -154,57 +392,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
           );
         }
 
-        /* ── tool output cards ── */
-        if (part.state === 'output-available') {
-          return (
-            <div key={part.toolCallId} className="tool-result">
-              {part.toolName === 'findDeals' && (() => {
-                const d = part.output as any;
-                return (
-                  <div
-                    className="deal-card"
-                    onClick={() => {
-                      const q = `${d.deal} ${d.store} ${d.category}`;
-                      window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
-                    }}
-                  >
-                    <div className="deal-badge">{d.deal}</div>
-                    <div className="deal-store">{d.store}</div>
-                    <div className="deal-category">
-                      {d.category}{d.maxPrice !== 'No limit' ? ` · up to $${d.maxPrice}` : ''}
-                    </div>
-                    <div className="deal-details">{d.details}</div>
-                  </div>
-                );
-              })()}
-              {part.toolName === 'getProductDetails' && (() => {
-                const p = part.output as any;
-                return (
-                  <div className="product-detail-card">
-                    <div className="pd-name">{p.name}</div>
-                    <div className="pd-meta">{p.store} · {p.price} · {p.rating}</div>
-                    <div className="pd-desc">{p.description}</div>
-                  </div>
-                );
-              })()}
-              {part.toolName === 'compareProducts' && (() => {
-                const c = part.output as any;
-                return (
-                  <div className="compare-card">
-                    <div className="compare-header">Comparison</div>
-                    <div className="compare-products">{c.products?.join(' vs ')}</div>
-                    <div className="compare-text">{c.comparison}</div>
-                  </div>
-                );
-              })()}
-              {!['findDeals', 'getProductDetails', 'compareProducts'].includes(part.toolName) && (
-                <details>
-                  <summary>{part.toolName} result</summary>
-                  <pre>{JSON.stringify(part.output, null, 2)}</pre>
-                </details>
-              )}
-            </div>
-          );
+        /* ── tool call accordion ── */
+        if (part.toolCallId && part.state !== 'approval-requested') {
+          return <ToolCallAccordion key={part.toolCallId} part={part} />;
         }
 
         return null;
@@ -213,24 +403,44 @@ export const MessageItem: React.FC<MessageItemProps> = ({
       {/* Feedback row — only for finished assistant messages */}
       {showFeedback && (
         <div className="feedback-row">
-          <button className="feedback-btn" title="Regenerate">
+          <button className="feedback-btn" title="Regenerate" onClick={onRegenerate}>
             <RotateCw size={14} />
           </button>
           <button
             className="feedback-btn"
             title="Copy response"
-            onClick={() => {
-              const text = msg.parts
-                .filter((p: any) => p.type === 'text')
-                .map((p: any) => p.text)
-                .join('\n');
-              navigator.clipboard.writeText(text);
-            }}
+            onClick={handleCopy}
           >
-            <Copy size={14} />
+            {copied ? <Check size={14} color="#81c784" /> : <Copy size={14} />}
           </button>
           <button className="feedback-btn" title="More">
             <MoreVertical size={16} />
+          </button>
+        </div>
+      )}
+
+      {/* Edit button row — only for user messages */}
+      {msg.role === 'user' && !isEditing && (
+        <div className="user-action-row">
+          <button
+            className="feedback-btn"
+            title="Edit prompt"
+            onClick={() => {
+              setIsEditing(true);
+              setEditText(msg.parts.find((p: any) => p.type === 'text')?.text || '');
+            }}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '4px',
+              borderRadius: '50%',
+            }}
+          >
+            <Pencil size={12} style={{ color: 'var(--text-muted)' }} />
           </button>
         </div>
       )}
