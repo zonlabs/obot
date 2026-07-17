@@ -81,6 +81,9 @@ interface ChatViewProps {
   suggestionsLoading: boolean;
   showPopup: boolean;
   setShowPopup: (v: boolean) => void;
+  showSelected: boolean;
+  setShowSelected: (v: boolean) => void;
+  selectedPanelRef: React.RefObject<HTMLDivElement | null>;
   showModelPopup: boolean;
   setShowModelPopup: (v: boolean) => void;
   showHistoryPopup: boolean;
@@ -121,6 +124,9 @@ function ChatView(props: ChatViewProps) {
     suggestionsLoading,
     showPopup,
     setShowPopup,
+    showSelected,
+    setShowSelected,
+    selectedPanelRef,
     showModelPopup,
     setShowModelPopup,
     showHistoryPopup,
@@ -373,6 +379,9 @@ function ChatView(props: ChatViewProps) {
         onStop={stop}
         showPopup={showPopup}
         setShowPopup={setShowPopup}
+        showSelected={showSelected}
+        setShowSelected={setShowSelected}
+        selectedPanelRef={selectedPanelRef}
         attachPopupRef={attachPopupRef}
         products={products}
         selectedUrls={selectedUrls}
@@ -464,6 +473,7 @@ export default function App() {
 
   // ── Popup visibility ──
   const [showPopup,        setShowPopup]        = useState(false);
+  const [showSelected,     setShowSelected]     = useState(false);
   const [showModelPopup,   setShowModelPopup]   = useState(false);
   const [showHistoryPopup, setShowHistoryPopup] = useState(false);
 
@@ -471,6 +481,7 @@ export default function App() {
   const [inputValue, setInputValue] = useState('');
   const inputRef          = useRef<HTMLTextAreaElement>(null);
   const attachPopupRef    = useRef<HTMLDivElement>(null);
+  const selectedPanelRef  = useRef<HTMLDivElement>(null);
   const modelDropdownRef  = useRef<HTMLDivElement>(null);
   const historyRef        = useRef<HTMLDivElement>(null);
 
@@ -510,7 +521,7 @@ export default function App() {
         setTabs(t);
         setSelectedUrls(prev =>
           prev.length === 0
-            ? t.map((x: any) => x.url)
+            ? []
             : prev.filter((u: string) => t.some((x: any) => x.url === u))
         );
       });
@@ -528,6 +539,15 @@ export default function App() {
         const tabTitle = tabs[0]?.title || '';
         if (tabs[0]?.url)   setActiveTabUrl(tabUrl);
         if (tabs[0]?.title) setActiveTabTitle(tabTitle);
+
+        // Auto-add active tab to selected set on first load (Option B)
+        if (tabUrl && !tabUrl.startsWith('chrome://')) {
+          setSelectedUrls(prev => {
+            if (prev.length === 0) return [tabUrl];
+            if (!prev.includes(tabUrl)) return [...prev, tabUrl];
+            return prev;
+          });
+        }
 
         // Generate LLM suggestions for the active tab
         if (tabUrl && !tabUrl.startsWith('chrome://')) {
@@ -594,9 +614,15 @@ export default function App() {
     const handleClickOutside = (event: MouseEvent) => {
       if (showPopup && attachPopupRef.current && !attachPopupRef.current.contains(event.target as Node)) {
         const plusBtn    = document.querySelector('.input-action-circle-btn');
-        const chevronBtn = document.querySelector('.sharing-chevron');
+        const chevronBtn = document.querySelector('.chips-expand');
         if (!plusBtn?.contains(event.target as Node) && !chevronBtn?.contains(event.target as Node)) {
           setShowPopup(false);
+        }
+      }
+      if (showSelected && selectedPanelRef.current && !selectedPanelRef.current.contains(event.target as Node)) {
+        const chips = document.querySelector('#context-chips');
+        if (!chips?.contains(event.target as Node)) {
+          setShowSelected(false);
         }
       }
       if (showModelPopup && modelDropdownRef.current && !modelDropdownRef.current.contains(event.target as Node)) {
@@ -608,7 +634,7 @@ export default function App() {
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => { document.removeEventListener('mousedown', handleClickOutside); };
-  }, [showPopup, showModelPopup, showHistoryPopup]);
+  }, [showPopup, showSelected, showModelPopup, showHistoryPopup]);
 
   // ── Handlers ──
   const handleSignIn  = () => chrome.runtime.sendMessage({ type: 'auth:signin' },  (r) => { if (r?.user) setUser(r.user); });
@@ -617,8 +643,8 @@ export default function App() {
   const handleRemoveProduct = (url: string) => {
     chrome.runtime.sendMessage({ type: 'canvas:remove', url }, () => {
       chrome.runtime.sendMessage({ type: 'canvas:get' }, (response) => {
-        const p = response?.canvas || [];
-        setProducts(p);
+        const p = response?.tabs || [];
+        setTabs(p);
         setSelectedUrls(prev => prev.filter(u => u !== url && p.some((x: any) => x.url === u)));
       });
     });
@@ -657,6 +683,9 @@ export default function App() {
         suggestionsLoading={suggestionsLoading}
         showPopup={showPopup}
         setShowPopup={setShowPopup}
+        showSelected={showSelected}
+        setShowSelected={setShowSelected}
+        selectedPanelRef={selectedPanelRef}
         showModelPopup={showModelPopup}
         setShowModelPopup={setShowModelPopup}
         showHistoryPopup={showHistoryPopup}

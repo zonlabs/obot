@@ -1,5 +1,5 @@
-import React, { RefObject } from 'react';
-import { Plus, ChevronDown, Check, ArrowUp, Square } from 'lucide-react';
+import React, { RefObject, useState } from 'react';
+import { Plus, ChevronDown, Check, ArrowUp, Square, X } from 'lucide-react';
 
 /* ── small local helpers ── */
 const CircleCheckIcon = () => (
@@ -25,6 +25,47 @@ const ChevronIcon = ({ isUp }: { isUp: boolean }) => (
     style={{ transform: isUp ? 'none' : 'rotate(180deg)', transition: 'transform 0.2s' }}
   />
 );
+
+const Favicon: React.FC<{ url: string; size?: number; className?: string }> = ({
+  url,
+  size = 20,
+  className,
+}) => {
+  const domain = safeUrl(url);
+  const [errored, setErrored] = useState(false);
+  const isLocal = !domain || domain === 'localhost' || domain.startsWith('127.') || domain === '0.0.0.0';
+  const showFallback = errored || isLocal;
+  const letter = (domain || '?').charAt(0).toUpperCase();
+
+  const boxStyle: React.CSSProperties = {
+    width: size,
+    height: size,
+    borderRadius: '4px',
+    flexShrink: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'var(--text-muted, #8e8e8e)',
+    color: '#ffffff',
+    fontWeight: 600,
+    fontSize: Math.max(9, Math.round(size * 0.55)),
+    textTransform: 'uppercase',
+  };
+
+  if (showFallback) {
+    return <div className={className} style={boxStyle}>{letter}</div>;
+  }
+
+  return (
+    <img
+      className={className}
+      src={`https://icons.duckduckgo.com/ip3/${domain}.ico`}
+      alt=""
+      style={{ width: size, height: size, borderRadius: '4px', flexShrink: 0, objectFit: 'cover' }}
+      onError={() => setErrored(true)}
+    />
+  );
+};
 
 type ModelTier = 'basic' | 'intermediate' | 'advanced';
 
@@ -67,6 +108,11 @@ interface ChatInputProps {
   activeTabUrl: string;
   onToggleUrl: (url: string) => void;
 
+  /* selected tabs inline panel */
+  showSelected: boolean;
+  setShowSelected: (v: boolean) => void;
+  selectedPanelRef: RefObject<HTMLDivElement | null>;
+
   /* model dropdown */
   showModelPopup: boolean;
   setShowModelPopup: (v: boolean) => void;
@@ -98,6 +144,9 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   selectedProducts,
   activeTabUrl,
   onToggleUrl,
+  showSelected,
+  setShowSelected,
+  selectedPanelRef,
   showModelPopup,
   setShowModelPopup,
   modelDropdownRef,
@@ -108,8 +157,57 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSelectModel,
   onStop,
 }) => {
+  const selectedTabs = products.filter((p: any) => selectedUrls.includes(p.url));
+
   return (
     <div id="input-outer-container">
+      {/* ── Child 1: Chip UI (selected tabs) — floats above the input ── */}
+      {selectedUrls.length > 0 && (
+        <div id="context-chips">
+          <div className="chips-row">
+            <span className="chips-text">
+              Sharing {selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''}
+            </span>
+            <button
+              className="chips-expand"
+              title={showSelected ? 'Hide selected tabs' : 'Show selected tabs'}
+              onClick={() => { setShowPopup(false); setShowSelected(!showSelected); }}
+            >
+              <ChevronIcon isUp={showSelected} />
+            </button>
+          </div>
+
+          {showSelected && (
+            <div id="selected-detail">
+              <div className="selected-detail-header">Selected Tabs · {selectedTabs.length}</div>
+              {selectedTabs.map((p: any) => (
+                <div key={p.url} className="popup-item active">
+                  <Favicon url={p.url} size={20} className="popup-item-icon" />
+                  <div className="popup-item-info">
+                    <div className="popup-item-name">
+                      {p.title || p.url}
+                      {p.active && (
+                        <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
+                      )}
+                    </div>
+                    <div className="popup-item-store">{p.product?.store || safeUrl(p.url)}</div>
+                  </div>
+                  <button
+                    className="popup-item-remove"
+                    title="Remove tab"
+                    onClick={() => onToggleUrl(p.url)}
+                    style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', borderRadius: '6px' }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Child 2: Chat Input bubble ── */}
       <div id="input-capsule-wrapper" className={isStreaming ? 'streaming' : ''}>
 
         {/* ── Tab Attach Popup ── */}
@@ -126,11 +224,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                   className={`popup-item ${isSelected ? 'active' : ''}`}
                   onClick={() => onToggleUrl(p.url)}
                 >
-                  <img
-                    className="popup-item-icon"
-                    src={`https://www.google.com/s2/favicons?domain=${safeUrl(p.url)}&sz=20`}
-                    alt=""
-                  />
+                  <Favicon url={p.url} size={20} className="popup-item-icon" />
                   <div className="popup-item-info">
                     <div className="popup-item-name">
                       {p.title || p.url}
@@ -144,34 +238,6 @@ export const ChatInput: React.FC<ChatInputProps> = ({
                 </div>
               );
             })}
-          </div>
-        )}
-
-        {/* ── Sharing Banner ── */}
-        {selectedUrls.length > 0 && (
-          <div id="sharing-banner" onClick={() => setShowPopup(!showPopup)}>
-            <div className="sharing-info">
-              <div className="overlapping-favicons">
-                {selectedProducts.slice(0, 2).map((p: any, idx: number) => (
-                  <img
-                    key={p.url}
-                    className={`sharing-icon ${idx > 0 ? 'overlapping' : ''}`}
-                    src={`https://www.google.com/s2/favicons?domain=${safeUrl(p.url)}&sz=16`}
-                    alt=""
-                  />
-                ))}
-              </div>
-              <span className="sharing-text">
-                Sharing {selectedUrls.length === 1 ? '1 tab' : `${selectedUrls.length} tabs`}
-              </span>
-            </div>
-            <button
-              className="sharing-chevron"
-              title="Toggle Popup"
-              onClick={(e: React.MouseEvent) => { e.stopPropagation(); setShowPopup(!showPopup); }}
-            >
-              <ChevronIcon isUp={showPopup} />
-            </button>
           </div>
         )}
 
@@ -197,8 +263,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <div className="input-left-actions">
               <button
                 className="input-action-circle-btn"
-                title="Switch product"
-                onClick={() => setShowPopup(!showPopup)}
+                title="Attach tabs"
+                onClick={() => { setShowSelected(false); setShowPopup(!showPopup); }}
               >
                 <Plus size={18} />
               </button>

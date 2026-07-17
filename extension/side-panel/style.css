@@ -421,83 +421,129 @@ body {
   }
 }
 
-#sharing-banner {
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-  border-top-left-radius: 11px;
-  border-top-right-radius: 11px;
-  padding: 10px 16px;
+/* Child 1: Chip UI (selected tabs) — floats above the input bubble */
+#context-chips {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  cursor: pointer;
-  user-select: none;
-  transition: background-color 0.15s;
-}
-
-#sharing-banner:hover {
-  background-color: var(--bg-hover);
-}
-
-.sharing-info {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.overlapping-favicons {
-  display: flex;
-  align-items: center;
-}
-
-.sharing-icon {
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  border: 2px solid var(--bg-secondary);
-  background: var(--bg-primary);
-  flex-shrink: 0;
-}
-
-.sharing-icon.overlapping {
-  margin-left: -8px;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
   z-index: 2;
 }
 
-.sharing-text {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text-primary);
+.chips-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 200px;
+  padding: 4px 6px 4px 5px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.context-chip-icon {
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  flex-shrink: 0;
+}
+
+.context-chip-label {
+  font-size: 12px;
+  color: var(--text-secondary);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.sharing-chevron {
+.context-chip-remove {
   background: transparent;
   border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 0;
+  margin-left: 2px;
+  border-radius: 50%;
+}
+
+.context-chip-remove:hover {
+  color: var(--text-primary);
+}
+
+.context-chip-more {
+  padding: 4px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.chips-expand {
+  background: transparent;
+  border: 1px solid var(--border-color);
   color: var(--text-secondary);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  border-radius: 50%;
-  transition: background 0.15s, color 0.15s;
+  width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
-.sharing-chevron:hover {
+.chips-expand:hover {
   background: var(--bg-hover);
   color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 
-/* Input Area (Unified capsule) */
+#selected-detail {
+  border: 1px solid var(--border-color);
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.chips-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.selected-detail-header {
+  padding: 2px 4px 4px;
+  font-size: 10px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+}
+
+/* Input Area (parent: chip UI layer + chat-input bubble) */
 #input-outer-container {
   padding: 6px 10px 10px;
   background: var(--bg-primary);
   flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 #input-capsule {

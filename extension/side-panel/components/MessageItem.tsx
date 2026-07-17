@@ -9,6 +9,7 @@ import { renderMarkdown } from '../utils/markdown';
  * e.g. "tool_ZD5_lTox_web_search_exa" → "Web Search Exa"
  */
 function formatToolName(raw: string): string {
+  if (!raw || typeof raw !== 'string') return 'Tool Call';
   const parts = raw.split('_');
   let start = 0;
   // If name starts with 'tool', skip it plus any following short hash-like segments
