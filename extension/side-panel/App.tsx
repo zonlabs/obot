@@ -122,17 +122,6 @@ function ChatView(props: ChatViewProps) {
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory } = useAgentChat({
     agent,
     body: { model, canvas: selectedProducts },
-    getInitialMessages: async () => {
-      try {
-        const res = await fetch(`${WORKER_URL}/agents/chat-agent/${activeThreadId}/get-messages`);
-        if (res.ok) {
-          return await res.json();
-        }
-      } catch (err) {
-        console.error('Error fetching initial messages:', err);
-      }
-      return [];
-    },
   });
 
   // ── Agent message listener (title broadcasts) ──
