@@ -1545,10 +1545,9 @@ details pre {
 .plugins-page-header {
   display: flex;
   align-items: center;
-  gap: 16px;
-  padding: 14px 16px;
+  gap: 12px;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
 }
 
 .plugins-page-header .back-btn {
@@ -1556,51 +1555,48 @@ details pre {
   align-items: center;
   gap: 6px;
   background: transparent;
-  border: 1px solid var(--border-color);
-  border-radius: 14px;
+  border: none;
   color: var(--text-secondary);
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
-  padding: 4px 10px;
+  padding: 4px 8px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  border-radius: 4px;
+  transition: all 0.15s;
 }
 
 .plugins-page-header .back-btn:hover {
-  background: var(--bg-hover);
   color: var(--text-primary);
-  border-color: var(--text-muted);
+  background: var(--bg-hover);
 }
 
 .plugins-page-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   margin: 0;
-  letter-spacing: -0.015em;
   color: var(--text-primary);
 }
 
+/* ── Tabs ── */
 .plugins-tabs {
   display: flex;
+  padding: 0 12px;
   border-bottom: 1px solid var(--border-color);
-  background: var(--bg-secondary);
-  padding: 0 8px;
 }
 
 .plugins-tabs .tab-btn {
-  flex: 1;
-  padding: 10px 4px;
+  padding: 10px 12px;
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--text-muted);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
+  margin-bottom: -1px;
+  transition: all 0.15s;
 }
 
 .plugins-tabs .tab-btn:hover {
@@ -1608,39 +1604,40 @@ details pre {
 }
 
 .plugins-tabs .tab-btn.active {
-  color: var(--accent-blue, #ff8a80);
-  border-bottom-color: var(--accent-blue, #ff8a80);
+  color: var(--accent-blue);
+  border-bottom-color: var(--accent-blue);
 }
 
+/* ── Content ── */
 .plugins-page-content {
   flex: 1;
   overflow-y: auto;
   padding: 16px;
 }
 
-/* Connect / Form Styles */
-.settings-tab-content {
+.settings-tab-content,
+.tools-tab-content,
+.resources-tab-content {
   display: flex;
   flex-direction: column;
-  gap: 20px;
 }
 
+/* ── Connect Form ── */
 .plugins-form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 14px;
+  gap: 10px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 16px;
 }
 
 .plugins-form .form-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
 }
 
 .plugins-form .input-group {
@@ -1650,33 +1647,40 @@ details pre {
 }
 
 .plugins-form input {
-  background: var(--bg-primary);
+  background: transparent;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 8px 12px;
+  border-radius: 6px;
+  padding: 8px 10px;
   color: var(--text-primary);
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .plugins-form input:focus {
-  border-color: var(--accent-blue, #ff8a80);
+  border-color: var(--accent-blue);
+}
+
+.plugins-form input::placeholder {
+  color: var(--text-muted);
+  opacity: 0.5;
 }
 
 .plugins-form .add-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--accent-blue, #ff8a80);
+  gap: 6px;
+  background: var(--accent-blue);
   color: #131314;
   border: none;
-  border-radius: 8px;
-  padding: 10px;
-  font-size: 13px;
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
+  align-self: flex-start;
   transition: opacity 0.15s;
 }
 
@@ -1684,26 +1688,30 @@ details pre {
   opacity: 0.9;
 }
 
+.plugins-form .add-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ── Error / Auth Banner ── */
 .plugins-error {
-  color: #ff6b6b;
+  color: #f87171;
   font-size: 12px;
-  background: rgba(255, 107, 107, 0.08);
-  border-radius: 6px;
-  padding: 8px 12px;
-  border: 1px solid rgba(255, 107, 107, 0.15);
+  padding: 6px 0;
+  margin-bottom: 8px;
 }
 
 .plugins-auth-banner {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 12px;
-  border-radius: 8px;
-  background: rgba(96, 165, 250, 0.08);
-  border: 1px solid rgba(96, 165, 250, 0.25);
-  font-size: 12.5px;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  background: rgba(96, 165, 250, 0.06);
+  border: 1px solid rgba(96, 165, 250, 0.2);
+  border-radius: 6px;
+  font-size: 12px;
   color: var(--text-primary);
-  line-height: 1.4;
+  margin-bottom: 16px;
 }
 
 .plugins-auth-banner strong {
@@ -1712,15 +1720,15 @@ details pre {
 
 .auth-dismiss-btn {
   border: none;
-  border-radius: 6px;
-  padding: 5px 12px;
-  font-size: 11.5px;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
   font-family: inherit;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 500;
   background: var(--bg-hover);
   color: var(--text-secondary);
-  align-self: flex-start;
+  margin-left: auto;
   transition: opacity 0.15s;
 }
 
@@ -1728,81 +1736,91 @@ details pre {
   opacity: 0.85;
 }
 
-/* Plugins List Card Styles */
+/* ── Plugin Rows ── */
 .plugins-list-section {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .plugins-list-section .section-title {
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: var(--text-secondary);
+  letter-spacing: 0.8px;
+  color: var(--text-muted);
+  margin-bottom: 4px;
 }
 
 .plugins-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
 }
 
 .plugin-card {
   display: flex;
-  flex-direction: column;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 12px 14px;
-  gap: 6px;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.plugin-card:last-child {
+  border-bottom: none;
 }
 
 .plugin-card .plugin-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  gap: 8px;
 }
 
 .plugin-name-row {
   display: flex;
   align-items: center;
   gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
 .plugin-name-row .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   flex-shrink: 0;
 }
 
 .plugin-card .plugin-name {
-  font-size: 13.5px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .plugin-card .plugin-url {
-  font-size: 11.5px;
+  font-size: 11px;
   color: var(--text-muted);
-  word-break: break-all;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  max-width: 50%;
+  direction: rtl;
+  text-align: right;
 }
 
 .plugin-card .plugin-status-text {
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: capitalize;
+  display: none;
 }
 
 .plugin-card .plugin-badge {
   font-size: 10px;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
   font-weight: 500;
+  flex-shrink: 0;
 }
 
 .plugin-card .remove-btn {
@@ -1812,92 +1830,119 @@ details pre {
   cursor: pointer;
   padding: 4px;
   border-radius: 4px;
-  transition: all 0.15s ease;
   display: flex;
   align-items: center;
-  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
 }
 
 .plugin-card .remove-btn:hover {
-  color: #ff6b6b;
-  background-color: rgba(255, 107, 107, 0.08);
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
 }
 
-/* Tools Tab Styles */
-.tools-list, .resources-list {
+/* ── Tool / Resource Rows ── */
+.tools-list,
+.resources-list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
-.tool-card, .resource-card {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 12px;
-  padding: 14px;
+.tool-card,
+.resource-card {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.tool-card:last-child,
+.resource-card:last-child {
+  border-bottom: none;
+}
+
+.tool-header,
+.resource-header {
   display: flex;
-  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
   gap: 8px;
 }
 
-.tool-header, .resource-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.tool-name, .resource-name {
+.tool-name,
+.resource-name {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--accent-blue, #ff8a80);
+  color: var(--accent-blue);
   word-break: break-all;
 }
 
-.tool-server-badge, .resource-server-badge {
+.tool-server-badge,
+.resource-server-badge {
   font-size: 10px;
   color: var(--text-muted);
-  background: var(--bg-hover);
-  padding: 2px 6px;
-  border-radius: 4px;
   font-weight: 500;
   flex-shrink: 0;
 }
 
-.tool-desc, .resource-desc {
-  font-size: 12.5px;
-  color: var(--text-secondary);
-  margin: 0;
-  line-height: 1.4;
+.tool-desc-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
 }
 
+.tool-desc,
+.resource-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 4px 0 0;
+  line-height: 1.4;
+  flex: 1;
+}
+
+.desc-toggle {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 4px 2px;
+  margin-top: 4px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+}
+
+.desc-toggle:hover {
+  color: var(--text-primary);
+  background: var(--hover-bg);
+}
+
+/* ── Tool Params ── */
 .tool-params {
-  background: var(--bg-primary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 10px 12px;
+  margin-top: 6px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .params-title {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
+  letter-spacing: 0.5px;
   color: var(--text-muted);
 }
 
 .params-list {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
 .param-item {
-  font-size: 12px;
-  line-height: 1.4;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .param-name {
@@ -1912,7 +1957,7 @@ details pre {
 }
 
 .param-required {
-  color: #ff6b6b;
+  color: #f87171;
   font-size: 10px;
   margin-left: 4px;
   font-weight: 500;
@@ -1922,44 +1967,46 @@ details pre {
   color: var(--text-secondary);
 }
 
-.resource-uri, .resource-mime {
-  font-size: 12px;
+/* ── Resource Details ── */
+.resource-uri,
+.resource-mime {
+  font-size: 11px;
   display: flex;
   align-items: center;
   gap: 6px;
   min-width: 0;
+  margin-top: 4px;
 }
 
 .resource-uri code {
   font-family: 'JetBrains Mono', monospace;
-  background: var(--bg-primary);
-  padding: 2px 6px;
-  border-radius: 4px;
   color: var(--text-primary);
-  overflow-x: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
   flex: 1;
 }
 
-.uri-label, .mime-label {
+.uri-label,
+.mime-label {
   color: var(--text-muted);
   font-weight: 500;
   flex-shrink: 0;
 }
 
-/* Empty State Styles */
+/* ── Empty State ── */
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 10px;
-  padding: 40px 20px;
+  gap: 8px;
+  padding: 48px 20px;
   text-align: center;
   color: var(--text-muted);
-  font-size: 13px;
+  font-size: 12px;
 }
 
 .empty-state svg {
-  color: var(--border-color);
+  opacity: 0.3;
 }

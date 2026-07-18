@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ArrowLeft, Trash2, Cpu, FileText, Plus } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ArrowLeft, Trash2, Cpu, FileText, Plus, ChevronDown, ChevronRight } from 'lucide-react';
 import { useAgent } from 'agents/react';
 
 const WORKER_URL = 'http://127.0.0.1:8787';
@@ -51,11 +51,25 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [authPending, setAuthPending] = useState<{ name: string; url: string } | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [expandedDescs, setExpandedDescs] = useState<Set<string>>(new Set());
+
+  const toggleDesc = (key: string) => {
+    setExpandedDescs(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  };
+
+  const MAX_DESC_LEN = 80;
 
   const agent = useAgent({
     agent: 'ChatAgent',
     name: agentId,
     host: WORKER_URL,
+    onClose: useCallback(() => setConnectionStatus('disconnected'), []),
+    onOpen: useCallback(() => setConnectionStatus('connected'), []),
     onMcpUpdate: (mcpState: any) => {
       console.log('[PluginsPage] MCP state updated:', mcpState);
       if (mcpState) {
@@ -132,6 +146,24 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
           <span>Back</span>
         </button>
         <h2 className="plugins-page-title">Plugins & Capabilities</h2>
+        <div className="connection-status" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span
+            style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              backgroundColor:
+                connectionStatus === 'connected' ? '#4ade80' :
+                connectionStatus === 'connecting' ? '#facc15' : '#f87171',
+              boxShadow:
+                connectionStatus === 'connected' ? '0 0 6px #4ade80' : undefined,
+            }}
+          />
+          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
+            {connectionStatus === 'connected' ? 'Connected' :
+             connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
+          </span>
+        </div>
       </header>
 
       {/* ── Tabs Navigation ── */}
@@ -249,7 +281,20 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
                       <span className="tool-name">{t.name}</span>
                       <span className="tool-server-badge">{getServerName(t.serverId)}</span>
                     </div>
-                    {t.description && <p className="tool-desc">{t.description}</p>}
+                    {t.description && (
+                      <div className="tool-desc-wrap">
+                        <p className="tool-desc">
+                          {expandedDescs.has(`${t.serverId}-${t.name}`) || t.description.length <= MAX_DESC_LEN
+                            ? t.description
+                            : t.description.slice(0, MAX_DESC_LEN) + '...'}
+                        </p>
+                        {t.description.length > MAX_DESC_LEN && (
+                          <button className="desc-toggle" onClick={() => toggleDesc(`${t.serverId}-${t.name}`)}>
+                            {expandedDescs.has(`${t.serverId}-${t.name}`) ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                        )}
+                      </div>
+                    )}
                     
                     {t.inputSchema && t.inputSchema.properties && Object.keys(t.inputSchema.properties).length > 0 && (
                       <div className="tool-params">

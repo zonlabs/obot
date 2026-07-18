@@ -22,7 +22,7 @@ export class ChatAgent extends AIChatAgent<Env> {
   }
 
   @callable()
-  getMcpState() {
+  listPlugins() {
     return this.getMcpServers();
   }
 
@@ -80,7 +80,7 @@ export class ChatAgent extends AIChatAgent<Env> {
       if (pluginsAgentId) {
         try {
           const stub = this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)) as any;
-          const state: any = await stub.getMcpState();
+          const state: any = await stub.listPlugins();
           for (const [, server] of Object.entries<{ name: string; server_url: string }>(state.servers)) {
             await this.addMcpServer(server.name, server.server_url);
           }
