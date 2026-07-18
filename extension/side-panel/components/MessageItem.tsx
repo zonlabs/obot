@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, Pencil, Check } from 'lucide-react';
+import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Pencil, Check, List, Search, Globe, FileText, AlertCircle } from 'lucide-react';
 import { getToolApproval } from '@cloudflare/ai-chat/react';
 import { renderMarkdown } from '../utils/markdown';
 
@@ -11,14 +11,13 @@ import { renderMarkdown } from '../utils/markdown';
 function formatToolName(raw: string): string {
   if (!raw || typeof raw !== 'string') return 'Unknown Tool';
   
-  // Strip common prefixes
-  let cleaned = raw;
-  if (cleaned.startsWith('tool_')) {
-    cleaned = cleaned.slice(5);
+  let parts = raw.split('_');
+  if (parts[0] === 'tool' && parts.length > 1) {
+    const isServerId = /^[a-zA-Z0-9-]{8}$/.test(parts[1]);
+    parts = parts.slice(isServerId ? 2 : 1);
   }
-  
+
   // Clean up any remaining hash-like prefixes
-  const parts = cleaned.split('_');
   let start = 0;
   while (start < parts.length - 1) {
     const seg = parts[start];
@@ -29,7 +28,9 @@ function formatToolName(raw: string): string {
       break;
     }
   }
-  cleaned = parts.slice(start).join('_');
+  parts = parts.slice(start);
+  
+  let cleaned = parts.join('_');
 
   // Handle camelCase
   if (!cleaned.includes('_')) {
@@ -44,6 +45,100 @@ function formatToolName(raw: string): string {
 
   // Capitalize the very first letter just in case
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
+
+function getToolSummary(rawName: string, args: any, output: any, state: string): string {
+  if (!rawName) return 'Running capability';
+  const name = rawName.toLowerCase();
+  
+  // While executing, show a generic loading summary
+  const isExecuting = state === 'input-streaming' || state !== 'output-available' && state !== 'output-error';
+  
+  // Count items if output is an array or has a list field
+  let count = 0;
+  let hasCount = false;
+  if (output) {
+    if (Array.isArray(output)) {
+      count = output.length;
+      hasCount = true;
+    } else if (typeof output === 'object') {
+      const listKey = Object.keys(output).find(k => Array.isArray(output[k]));
+      if (listKey) {
+        count = output[listKey].length;
+        hasCount = true;
+      }
+    }
+  }
+
+  // 1. Exa Web Search
+  if (name.includes('web_search') || name.includes('search_web')) {
+    if (isExecuting) return 'Searching the web...';
+    if (hasCount) return `Found ${count} search result${count === 1 ? '' : 's'}`;
+    return 'Searched the web';
+  }
+  if (name.includes('web_fetch') || name.includes('fetch_web')) {
+    if (isExecuting) return 'Fetching web page...';
+    return 'Fetched web page content';
+  }
+
+  // 2. Tab content
+  if (name.includes('gettabcontent') || name.includes('get_tab_content')) {
+    if (isExecuting) return 'Reading tab content...';
+    return 'Read active tab content';
+  }
+  if (name.includes('getactivetabs') || name.includes('get_active_tabs')) {
+    if (isExecuting) return 'Retrieving active tabs...';
+    if (hasCount) return `Retrieved ${count} active tab${count === 1 ? '' : 's'}`;
+    return 'Retrieved active tabs';
+  }
+
+  // 3. Plugins, Tools, Resources
+  if (name.includes('listplugins') || name.includes('list_plugins')) {
+    if (isExecuting) return 'Listing plugins...';
+    if (hasCount) return `Listed ${count} connected plugin${count === 1 ? '' : 's'}`;
+    return 'Listed connected plugins';
+  }
+  if (name.includes('listresources') || name.includes('list_resources')) {
+    if (isExecuting) return 'Listing resources...';
+    if (hasCount) return `Listed ${count} resource${count === 1 ? '' : 's'}`;
+    return 'Listed resources';
+  }
+  if (name.includes('listtools') || name.includes('list_tools')) {
+    if (isExecuting) return 'Listing tools...';
+    if (hasCount) return `Listed ${count} tool${count === 1 ? '' : 's'}`;
+    return 'Listed tools';
+  }
+
+  // 4. Default fallback: use formatToolName
+  const formatted = formatToolName(rawName);
+  if (isExecuting) return `Calling ${formatted}...`;
+  return `Called ${formatted}`;
+}
+
+function getToolIcon(rawName: string, state: string) {
+  if (state === 'output-error') {
+    return <AlertCircle size={13} style={{ color: '#ff6b6b' }} />;
+  }
+
+  if (!rawName) return <Wrench size={13} />;
+  const name = rawName.toLowerCase();
+
+  if (name.includes('web_search') || name.includes('search_web')) {
+    return <Search size={13} />;
+  }
+  if (name.includes('web_fetch') || name.includes('fetch_web')) {
+    return <Globe size={13} />;
+  }
+  if (name.includes('tab')) {
+    return <Globe size={13} />;
+  }
+  if (name.includes('list') || name.includes('plugin') || name.includes('resource') || name.includes('tool')) {
+    return <List size={13} />;
+  }
+  if (name.includes('read') || name.includes('write') || name.includes('file')) {
+    return <FileText size={13} />;
+  }
+  return <Wrench size={13} />;
 }
 
 interface ToolCallAccordionProps {
@@ -83,26 +178,6 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part, allParts, a
     }
   }
 
-  let statusText = 'Completed';
-  let statusClass = 'completed';
-
-  if (part.state === 'output-available') {
-    statusText = 'Completed';
-    statusClass = 'completed';
-  } else if (part.state === 'output-error') {
-    statusText = 'Failed';
-    statusClass = 'failed';
-  } else if (part.state === 'approval-requested') {
-    statusText = 'Waiting approval';
-    statusClass = 'waiting';
-  } else if (part.state === 'input-streaming') {
-    statusText = 'Executing...';
-    statusClass = 'executing';
-  } else {
-    statusText = 'Executing...';
-    statusClass = 'executing';
-  }
-
   const argsString = JSON.stringify(part.input || part.args || {}, null, 2);
   const resultString = part.output !== undefined 
     ? (typeof part.output === 'object' ? JSON.stringify(part.output, null, 2) : String(part.output))
@@ -124,21 +199,23 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part, allParts, a
     );
   };
 
+  const isExecuting = part.state !== 'output-available' && part.state !== 'output-error';
+  const summary = getToolSummary(toolName, part.input || part.args, part.output, part.state);
+
   return (
     <div className="tool-call-accordion">
       <div className="tool-call-header" onClick={() => setIsOpen(!isOpen)}>
-        <div className="tool-call-header-left">
+        <div className="tool-call-icon-wrapper">
           <div className="tool-call-icon">
-            <Wrench size={13} />
+            {getToolIcon(toolName, part.state)}
           </div>
-          <div className="tool-call-title-container">
-            <span className="tool-call-name">{formatToolName(toolName)}</span>
-            <span className={`tool-call-status ${statusClass}`}>{statusText}</span>
+          <div className="tool-call-chevron">
+            {isOpen ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
           </div>
         </div>
-        <div className="tool-call-chevron">
-          {isOpen ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-        </div>
+        <span className={`tool-call-name ${isExecuting ? 'tool-call-shimmer' : ''}`}>
+          {summary}
+        </span>
       </div>
 
       {isOpen && (

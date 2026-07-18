@@ -9,15 +9,15 @@ const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_adva
 
 function buildSystemPrompt(): string {
   return "You are Obot, a helpful assistant embedded in the user's browser. " +
-         "Tools available: getActiveTabs (list open tabs), getTabContent (read page content by URL, supports offset pagination — next offset = current offset + returned length). " +
-         "Always call getTabContent on the active tab URL when the user asks about what's on their screen. Never guess page content from its URL.";
+    "Tools available: getActiveTabs (list open tabs), getTabContent (read page content by URL, supports offset pagination — next offset = current offset + returned length). " +
+    "Always call getTabContent on the active tab URL when the user asks about what's on their screen. Never guess page content from its URL.";
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
   async onStart() {
     // Register the built-in exa server only on the stable plugins DO instance.
     if (this.name?.includes("plugins")) {
-      await this.addMcpServer("exa", EXA_MCP_URL, { id: "exa" });
+      await this.addMcpServer("exa", EXA_MCP_URL, { id: "ExavMbPd" });
     }
   }
 
@@ -33,6 +33,8 @@ export class ChatAgent extends AIChatAgent<Env> {
       state: s.state,
     }));
   }
+
+
 
   @callable()
   async addPlugin(
@@ -82,11 +84,11 @@ export class ChatAgent extends AIChatAgent<Env> {
     const isFirstTurn = this.messages.length <= 2;
     const userMessage = isFirstTurn
       ? this.messages
-          .filter(m => m.role === 'user')
-          .flatMap(m => m.parts.filter((p): p is { type: 'text'; text: string } => p.type === 'text'))
-          .map(p => p.text)
-          .join('')
-          .trim()
+        .filter(m => m.role === 'user')
+        .flatMap(m => m.parts.filter((p): p is { type: 'text'; text: string } => p.type === 'text'))
+        .map(p => p.text)
+        .join('')
+        .trim()
       : '';
 
     try {

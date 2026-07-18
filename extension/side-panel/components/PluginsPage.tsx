@@ -1,0 +1,314 @@
+import React, { useState } from 'react';
+import { ArrowLeft, Trash2, Cpu, FileText, Plus } from 'lucide-react';
+import { useAgent } from 'agents/react';
+
+const WORKER_URL = 'http://127.0.0.1:8787';
+
+interface McpServer {
+  id: string;
+  name: string;
+  url: string;
+  state: string;
+}
+
+interface McpTool {
+  serverId: string;
+  name: string;
+  description?: string;
+  inputSchema?: any;
+}
+
+interface McpResource {
+  serverId: string;
+  name: string;
+  uri: string;
+  description?: string;
+  mimeType?: string;
+}
+
+interface PluginsPageProps {
+  agentId: string;
+  onClose: () => void;
+}
+
+function mcpStateToServers(mcpState: any): McpServer[] {
+  return Object.entries(mcpState?.servers ?? {}).map(([id, server]: [string, any]) => ({
+    id,
+    name: server.name,
+    url: server.server_url ?? '',
+    state: server.state,
+  }));
+}
+
+export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) => {
+  const [servers, setServers] = useState<McpServer[]>([]);
+  const [tools, setTools] = useState<McpTool[]>([]);
+  const [resources, setResources] = useState<McpResource[]>([]);
+  const [activeTab, setActiveTab] = useState<'settings' | 'tools' | 'resources'>('settings');
+
+  const [name, setName] = useState('');
+  const [url, setUrl] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [authPending, setAuthPending] = useState<{ name: string; url: string } | null>(null);
+
+  const agent = useAgent({
+    agent: 'ChatAgent',
+    name: agentId,
+    host: WORKER_URL,
+    onMcpUpdate: (mcpState: any) => {
+      console.log('[PluginsPage] MCP state updated:', mcpState);
+      if (mcpState) {
+        setServers(mcpStateToServers(mcpState));
+        setTools(mcpState.tools ?? []);
+        setResources(mcpState.resources ?? []);
+      }
+    },
+  });
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !url.trim()) return;
+    setLoading(true);
+    setError('');
+    try {
+      const data = await agent.stub.addPlugin(name.trim(), url.trim(), WORKER_URL) as any;
+      if (data.success) {
+        if (data.requiresAuth && data.authUrl) {
+          setAuthPending({ name: name.trim(), url: url.trim() });
+          window.open(data.authUrl, '_blank', 'noopener,noreferrer');
+        }
+        setName('');
+        setUrl('');
+      } else {
+        setError(data.error || 'Failed to add MCP server');
+      }
+    } catch (e) {
+      console.error('[PluginsPage] addPlugin failed', { agentId, error: e });
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemove = async (serverId: string) => {
+    const server = servers.find(s => s.id === serverId);
+    if (server?.name === 'exa') return;
+    try {
+      await agent.stub.removePlugin(serverId);
+    } catch (e) {
+      console.error('[PluginsPage] removePlugin failed:', e);
+    }
+  };
+
+  const getStatusColor = (state: string) => {
+    switch (state) {
+      case 'ready': return '#4ade80';
+      case 'connecting':
+      case 'connected':
+      case 'discovering': return '#facc15';
+      case 'authenticating': return '#60a5fa';
+      case 'failed': return '#f87171';
+      default: return '#6b7280';
+    }
+  };
+
+  // Find server name by serverId
+  const getServerName = (serverId: string) => {
+    const found = servers.find(s => s.id === serverId);
+    if (found) {
+      if (found.name === 'exa') return 'Exa Web Search (Built-in)';
+      return found.name;
+    }
+    return serverId;
+  };
+
+  return (
+    <div className="plugins-page-container">
+      {/* ── Header ── */}
+      <header className="plugins-page-header">
+        <button className="back-btn" onClick={onClose} title="Back to Chat">
+          <ArrowLeft size={16} />
+          <span>Back</span>
+        </button>
+        <h2 className="plugins-page-title">Plugins & Capabilities</h2>
+      </header>
+
+      {/* ── Tabs Navigation ── */}
+      <div className="plugins-tabs">
+        <button
+          className={`tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+        >
+          Manage
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'tools' ? 'active' : ''}`}
+          onClick={() => setActiveTab('tools')}
+        >
+          Tools ({tools.length})
+        </button>
+        <button
+          className={`tab-btn ${activeTab === 'resources' ? 'active' : ''}`}
+          onClick={() => setActiveTab('resources')}
+        >
+          Resources ({resources.length})
+        </button>
+      </div>
+
+      {/* ── Main Content Area ── */}
+      <div className="plugins-page-content">
+        
+        {/* ── Tab: Manage/Settings ── */}
+        {activeTab === 'settings' && (
+          <div className="settings-tab-content">
+            <form onSubmit={handleAdd} className="plugins-form">
+              <div className="form-title">Connect MCP Server</div>
+              <div className="input-group">
+                <input
+                  placeholder="Plugin Name (e.g. todo)"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+                <input
+                  placeholder="MCP Server Endpoint URL"
+                  value={url}
+                  onChange={(e) => setUrl(e.target.value)}
+                  disabled={loading}
+                  required
+                />
+              </div>
+              <button type="submit" disabled={loading} className="add-btn">
+                <Plus size={16} style={{ marginRight: '6px' }} />
+                {loading ? 'Adding...' : 'Add Plugin'}
+              </button>
+            </form>
+
+            {error && <div className="plugins-error">{error}</div>}
+
+            {authPending && (
+              <div className="plugins-auth-banner">
+                <span><strong>{authPending.name}</strong> requires authorization.</span>
+                <span>Complete sign-in in the opened tab — status updates automatically.</span>
+                <button className="auth-dismiss-btn" onClick={() => setAuthPending(null)}>Dismiss</button>
+              </div>
+            )}
+
+            <div className="plugins-list-section">
+              <div className="section-title">Connected Plugins</div>
+              <div className="plugins-list">
+                {servers.map((s) => (
+                  <div key={s.id} className="plugin-card">
+                    <div className="plugin-header">
+                      <div className="plugin-name-row">
+                        <span
+                          className="status-dot"
+                          style={{
+                            backgroundColor: getStatusColor(s.state),
+                            boxShadow: s.state === 'ready' ? '0 0 6px #4ade80' : undefined,
+                          }}
+                        />
+                        <span className="plugin-name">{s.name}</span>
+                      </div>
+                      {s.name !== 'exa' ? (
+                        <button
+                          className="remove-btn"
+                          title="Remove Plugin"
+                          onClick={() => handleRemove(s.id)}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      ) : (
+                        <span className="plugin-badge">System</span>
+                      )}
+                    </div>
+                    <div className="plugin-url">{s.url}</div>
+                    <div className="plugin-status-text">Status: {s.state}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Tab: Tools ── */}
+        {activeTab === 'tools' && (
+          <div className="tools-tab-content">
+            {tools.length === 0 ? (
+              <div className="empty-state">
+                <Cpu size={24} />
+                <div>No tools available. Add a plugin to enable tools.</div>
+              </div>
+            ) : (
+              <div className="tools-list">
+                {tools.map((t, idx) => (
+                  <div key={`${t.serverId}-${t.name}-${idx}`} className="tool-card">
+                    <div className="tool-header">
+                      <span className="tool-name">{t.name}</span>
+                      <span className="tool-server-badge">{getServerName(t.serverId)}</span>
+                    </div>
+                    {t.description && <p className="tool-desc">{t.description}</p>}
+                    
+                    {t.inputSchema && t.inputSchema.properties && Object.keys(t.inputSchema.properties).length > 0 && (
+                      <div className="tool-params">
+                        <div className="params-title">Parameters:</div>
+                        <div className="params-list">
+                          {Object.entries(t.inputSchema.properties).map(([pName, pSchema]: [string, any]) => {
+                            const isRequired = t.inputSchema.required?.includes(pName);
+                            return (
+                              <div key={pName} className="param-item">
+                                <span className="param-name">{pName}</span>
+                                <span className="param-type">({pSchema.type || 'any'})</span>
+                                {isRequired && <span className="param-required">*required</span>}
+                                {pSchema.description && <span className="param-desc"> — {pSchema.description}</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Tab: Resources ── */}
+        {activeTab === 'resources' && (
+          <div className="resources-tab-content">
+            {resources.length === 0 ? (
+              <div className="empty-state">
+                <FileText size={24} />
+                <div>No resources available from connected plugins.</div>
+              </div>
+            ) : (
+              <div className="resources-list">
+                {resources.map((r, idx) => (
+                  <div key={`${r.serverId}-${r.name}-${idx}`} className="resource-card">
+                    <div className="resource-header">
+                      <span className="resource-name">{r.name}</span>
+                      <span className="resource-server-badge">{getServerName(r.serverId)}</span>
+                    </div>
+                    {r.description && <p className="resource-desc">{r.description}</p>}
+                    <div className="resource-uri">
+                      <span className="uri-label">URI:</span> <code>{r.uri}</code>
+                    </div>
+                    {r.mimeType && (
+                      <div className="resource-mime">
+                        <span className="mime-label">Type:</span> <span>{r.mimeType}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        
+      </div>
+    </div>
+  );
+};

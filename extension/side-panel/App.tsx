@@ -10,7 +10,7 @@ import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
 import { createClientTools } from './utils/clientTools';
-import { PluginsModal } from './components/PluginsModal';
+import { PluginsPage } from './components/PluginsPage';
 import { ChatViewProps } from '../shared/types';
 
 // ── Constants ──
@@ -515,7 +515,7 @@ export default function App() {
   const [showPopup,        setShowPopup]        = useState(false);
   const [showSelected,     setShowSelected]     = useState(false);
   const [showModelPopup,   setShowModelPopup]   = useState(false);
-  const [showPluginsModal, setShowPluginsModal] = useState(false);
+  const [activeView, setActiveView] = useState<'chat' | 'plugins'>('chat');
   const [showHistoryPopup, setShowHistoryPopup] = useState(false);
 
   // ── Input state ──
@@ -697,6 +697,15 @@ export default function App() {
     setSelectedUrls(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
 
   // ── Render ──
+  if (activeView === 'plugins') {
+    return (
+      <PluginsPage
+        agentId={pluginsAgentId}
+        onClose={() => setActiveView('chat')}
+      />
+    );
+  }
+
   return (
     <Suspense fallback={<ChatSkeleton />}>
       <ChatView
@@ -738,15 +747,9 @@ export default function App() {
         onSelectModel={handleSelectModel}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
-        onOpenPlugins={() => setShowPluginsModal(true)}
+        onOpenPlugins={() => setActiveView('plugins')}
         pluginsAgentId={pluginsAgentId}
       />
-      {showPluginsModal && (
-        <PluginsModal
-          agentId={pluginsAgentId}
-          onClose={() => setShowPluginsModal(false)}
-        />
-      )}
     </Suspense>
   );
 }
