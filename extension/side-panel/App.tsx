@@ -15,6 +15,37 @@ import { ChatViewProps } from '../shared/types';
 
 // ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
+const PLUGINS_AGENT_ID_STORAGE_KEY = 'obot_plugins_agent_id';
+
+function sanitizeAgentIdPart(value: string): string {
+  return value.replace(/[^a-zA-Z0-9_-]/g, '_');
+}
+
+function createInstallPluginAgentId(): string {
+  const randomId = typeof crypto !== 'undefined' && 'randomUUID' in crypto
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  return `plugins-install-${sanitizeAgentIdPart(randomId)}`;
+}
+
+function getInstallPluginAgentId(): string {
+  try {
+    const existing = localStorage.getItem(PLUGINS_AGENT_ID_STORAGE_KEY);
+    if (existing) return existing;
+
+    const next = createInstallPluginAgentId();
+    localStorage.setItem(PLUGINS_AGENT_ID_STORAGE_KEY, next);
+    return next;
+  } catch {
+    return createInstallPluginAgentId();
+  }
+}
+
+function getPluginsAgentId(user: any): string {
+  const userId = user?.id ? String(user.id) : '';
+  if (userId) return `plugins-user-${sanitizeAgentIdPart(userId)}`;
+  return getInstallPluginAgentId();
+}
 
 // Models ordered from basic → advanced
 const VALID_MODELS = [
@@ -129,10 +160,30 @@ function ChatView(props: ChatViewProps) {
     });
   }, []); // Stable tools reference
 
+  const handleToolCall = useCallback(async ({ toolCall, addToolOutput }: {
+    toolCall: { toolCallId: string; toolName: string; input: unknown };
+    addToolOutput: (options: { toolCallId: string; output: unknown }) => void;
+  }) => {
+    const tool = clientTools[toolCall.toolName];
+    if (!tool?.execute) return;
+
+    let output: unknown;
+    try {
+      output = await tool.execute(toolCall.input);
+    } catch (error) {
+      output = `Error executing tool: ${error instanceof Error ? error.message : String(error)}`;
+    }
+
+    addToolOutput({
+      toolCallId: toolCall.toolCallId,
+      output,
+    });
+  }, [clientTools]);
+
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
     body: { model },
-    experimental_automaticToolResolution: true,
+    onToolCall: handleToolCall,
     tools: clientTools,
   });
 
@@ -259,7 +310,7 @@ function ChatView(props: ChatViewProps) {
     const userMsg = messages[userMsgIdx];
     if (userMsg.role !== 'user') return;
     
-    const userText = userMsg.parts.find((p: any) => p.type === 'text')?.text || '';
+    const userText = ((userMsg.parts.find((p: any) => p.type === 'text') as { text?: string } | undefined)?.text) || '';
     if (!userText) return;
     
     setPendingEdit({ text: userText });
@@ -487,6 +538,8 @@ export default function App() {
   } = useThreads();
 
   // ── Derived ──
+  const pluginsAgentId = useMemo(() => getPluginsAgentId(user), [user?.id]);
+
   const selectedModelLabel = useMemo(() => {
     const found = MODELS_DATA.find(m => m.value === model);
     return found ? found.label : model.split('/').pop()!;
@@ -688,10 +741,11 @@ export default function App() {
       />
       {showPluginsModal && (
         <PluginsModal
-          agentId={activeThreadId}
+          agentId={pluginsAgentId}
           onClose={() => setShowPluginsModal(false)}
         />
       )}
     </Suspense>
   );
 }
+

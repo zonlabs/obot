@@ -15,6 +15,25 @@ interface PluginsModalProps {
   agentId: string;
   onClose: () => void;
 }
+function mcpStateToServers(mcpState: any): McpServer[] {
+  return Object.entries(mcpState?.servers ?? {}).map(([id, server]: [string, any]) => ({
+    id,
+    name: server.name,
+    url: server.server_url ?? '',
+    state: server.state,
+  }));
+}
+
+function mergeMcpServerUpdate(existingServers: McpServer[], mcpState: any): McpServer[] {
+  const updatedServers = mcpStateToServers(mcpState);
+  if (updatedServers.length === 0) return existingServers;
+
+  const byId = new Map(existingServers.map((server) => [server.id, server]));
+  for (const server of updatedServers) {
+    byId.set(server.id, server);
+  }
+  return Array.from(byId.values());
+}
 
 export const PluginsModal: React.FC<PluginsModalProps> = ({ agentId, onClose }) => {
   const [servers, setServers] = useState<McpServer[]>([]);
@@ -40,11 +59,7 @@ export const PluginsModal: React.FC<PluginsModalProps> = ({ agentId, onClose }) 
       }
     },
     onMcpUpdate: (mcpState: any) => {
-      // Live push: SDK fires this whenever a server state changes (connecting → ready, etc.)
-      const updated: McpServer[] = Object.entries(mcpState.servers ?? {}).map(
-        ([id, s]: [string, any]) => ({ id, name: s.name, url: s.server_url ?? '', state: s.state })
-      );
-      setServers(updated);
+      setServers((current) => mergeMcpServerUpdate(current, mcpState));
     },
   });
 
@@ -70,6 +85,7 @@ export const PluginsModal: React.FC<PluginsModalProps> = ({ agentId, onClose }) 
         setError(data.error || 'Failed to add MCP server');
       }
     } catch (e) {
+      console.error('[PluginsModal] addPlugin failed', { agentId, error: e });
       setError(e instanceof Error ? e.message : String(e));
     } finally {
       setLoading(false);
@@ -136,7 +152,7 @@ export const PluginsModal: React.FC<PluginsModalProps> = ({ agentId, onClose }) 
 
         {authPending && (
           <div className="plugins-auth-banner">
-            <span>🔐 <strong>{authPending.name}</strong> requires authorization.</span>
+            <span><strong>{authPending.name}</strong> requires authorization.</span>
             <span>Complete sign-in in the opened tab — status updates automatically.</span>
             <button className="auth-dismiss-btn" style={{ marginTop: '8px' }} onClick={() => setAuthPending(null)}>Dismiss</button>
           </div>
@@ -182,3 +198,4 @@ export const PluginsModal: React.FC<PluginsModalProps> = ({ agentId, onClose }) 
     </div>
   );
 };
+

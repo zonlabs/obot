@@ -39,26 +39,68 @@ app.get('/', (c) => {
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Authorization Complete</title>
   <style>
-    body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh;
-           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-           background: #0f0f11; color: #e2e8f0; }
-    .card { text-align: center; padding: 40px; background: #1a1a1e; border-radius: 16px;
-            border: 1px solid #2a2a30; max-width: 360px; }
-    .icon { font-size: 48px; margin-bottom: 16px; }
-    h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
-    p { margin: 0; font-size: 14px; color: #94a3b8; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Inter, sans-serif;
+      background: #f8fafc;
+      color: #0f172a;
+    }
+    main {
+      max-width: 420px;
+      text-align: center;
+    }
+    .status-icon {
+      width: 40px;
+      height: 40px;
+      margin: 0 auto 20px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #dcfce7;
+      color: #15803d;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+    h1 {
+      margin-bottom: 10px;
+      font-size: 24px;
+      font-weight: 650;
+      letter-spacing: -0.03em;
+    }
+    p {
+      color: #475569;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+    strong {
+      color: #0f172a;
+      font-weight: 600;
+    }
+    .hint {
+      margin-top: 18px;
+      color: #64748b;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <div class="icon">✅</div>
-    <h1>Authorization Complete</h1>
-    <p>You can close this tab and return to the Obot extension. Click <strong>Refresh status</strong> in the Plugins modal to confirm the connection.</p>
-  </div>
+  <main>
+    <div class="status-icon" aria-hidden="true">&#10003;</div>
+    <h1>Authorization complete</h1>
+    <p>The plugin has been connected successfully. You can close this tab and continue where you left off.</p>
+    <p class="hint">This tab will close automatically in a few seconds.</p>
+  </main>
   <script>
-    // Auto-close after 3s if opened as a popup
     if (window.opener) setTimeout(() => window.close(), 3000);
   </script>
 </body>
@@ -99,3 +141,4 @@ export default {
     return app.fetch(request, env);
   },
 };
+
