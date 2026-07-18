@@ -9,7 +9,7 @@ import { MessageItem } from './components/MessageItem';
 import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
-import { clientTools } from './utils/clientTools';
+import { createClientTools } from './utils/clientTools';
 
 // ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
@@ -150,6 +150,16 @@ function ChatView(props: ChatViewProps) {
     host: WORKER_URL,
     onIdentityChange: () => {},
   });
+
+  const clientTools = useMemo(() => {
+    return createClientTools({
+      getSelectedTabs: () => {
+        return tabs
+          .filter((t: any) => selectedUrls.includes(t.url))
+          .map((t: any) => ({ url: t.url, title: t.title || '' }));
+      }
+    });
+  }, [tabs, selectedUrls]);
 
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
