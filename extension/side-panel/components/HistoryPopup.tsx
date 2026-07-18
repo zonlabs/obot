@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlignLeft, Trash2 } from 'lucide-react';
+import { AlignLeft, Trash2, LogOut, LogIn, Puzzle } from 'lucide-react';
 
 interface ChatThread {
   id: string;
@@ -13,6 +13,10 @@ interface HistoryPopupProps {
   setActiveThreadId: (id: string) => void;
   setShowHistoryPopup: (show: boolean) => void;
   onDeleteThread: (id: string) => void;
+  user: any;
+  onSignIn: () => void;
+  onSignOut: () => void;
+  onOpenPlugins: () => void;
 }
 
 export const HistoryPopup: React.FC<HistoryPopupProps> = ({
@@ -21,9 +25,56 @@ export const HistoryPopup: React.FC<HistoryPopupProps> = ({
   setActiveThreadId,
   setShowHistoryPopup,
   onDeleteThread,
+  user,
+  onSignIn,
+  onSignOut,
+  onOpenPlugins,
 }) => {
   return (
     <div className="history-popup">
+      {/* Menu Actions */}
+      <div className="history-popup-menu-section">
+        <button
+          className="history-popup-menu-item"
+          onClick={() => {
+            onOpenPlugins();
+            setShowHistoryPopup(false);
+          }}
+        >
+          <Puzzle size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+          <span className="history-popup-menu-item-text">MCP Plugins</span>
+        </button>
+
+        {user ? (
+          <button
+            className="history-popup-menu-item"
+            onClick={() => {
+              onSignOut();
+              setShowHistoryPopup(false);
+            }}
+          >
+            <LogOut size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+            <span className="history-popup-menu-item-text">
+              Sign Out ({user.name || user.email})
+            </span>
+          </button>
+        ) : (
+          <button
+            className="history-popup-menu-item"
+            onClick={() => {
+              onSignIn();
+              setShowHistoryPopup(false);
+            }}
+          >
+            <LogIn size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+            <span className="history-popup-menu-item-text">Sign In with Google</span>
+          </button>
+        )}
+      </div>
+
+      <div className="history-popup-divider" />
+
+      {/* Recent Chats Section */}
       <div className="history-popup-header">Recent chats</div>
       <div className="history-popup-list">
         {threads.length === 0 ? (

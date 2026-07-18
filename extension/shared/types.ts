@@ -92,4 +92,5 @@ export interface ChatViewProps {
   onSelectModel: (val: string) => void;
   onSignIn: () => void;
   onSignOut: () => void;
+  onOpenPlugins: () => void;
 }

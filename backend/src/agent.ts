@@ -1,24 +1,74 @@
 import { AIChatAgent, OnChatMessageOptions, createToolsFromClientSchemas } from "@cloudflare/ai-chat";
+import { callable } from "agents";
 import { createWorkersAI } from "workers-ai-provider";
 import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount } from "ai";
 import { Env } from "./db/schema";
-
 
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa";
 
 function buildSystemPrompt(): string {
-  return "You are Obot, a concise assistant that helps the user with whatever they need. " +
-         "You have access to the following client-side tools:\n" +
-         "- getActiveTabs: gets the URL, title, and type (active, selected, active & selected) of the user's currently active tabs and explicitly attached tabs.\n" +
-         "- getTabContent: reads a portion of the visible text content from any tab by URL. Supports offset-based pagination (using the offset parameter) for reading long pages in chunks.\n\n" +
-         "Guidelines:\n" +
-         "1. If the user asks about the page/tab they are currently on or looking at, use getActiveTabs first to discover the active URLs, then use getTabContent with the relevant URL to read its content. If the page is long (indicated by hasMore: true in the tool output), you can paginate efficiently without overlapping reads: calculate the next offset by adding the current offset and the returned length of the chunk (nextOffset = currentOffset + length). Do not guess or use small overlapping offsets.";
+  return "You are Obot, a helpful assistant embedded in the user's browser. " +
+         "Tools available: getActiveTabs (list open tabs), getTabContent (read page content by URL, supports offset pagination — next offset = current offset + returned length). " +
+         "Always call getTabContent on the active tab URL when the user asks about what's on their screen. Never guess page content from its URL.";
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
   async onStart() {
-    await this.addMcpServer("exa", EXA_MCP_URL);
+    // SDK auto-restores previously connected servers from SQLite.
+    // Only register the built-in exa server (idempotent).
+    await this.addMcpServer("exa", EXA_MCP_URL, { id: "exa" });
+  }
+
+  // ── RPC methods (callable from the Hono plugins route via stub) ──
+
+  @callable()
+  listPlugins(): { id: string; name: string; url: string; state: string }[] {
+    const state = this.getMcpServers();
+    return Object.entries(state.servers).map(([id, s]: [string, any]) => ({
+      id,
+      name: s.name,
+      url: s.server_url ?? '',
+      state: s.state,
+    }));
+  }
+
+  @callable()
+  async addPlugin(
+    name: string,
+    url: string,
+    callbackHost?: string
+  ): Promise<{
+    success: boolean;
+    requiresAuth: boolean;
+    authUrl?: string;
+    list: { id: string; name: string; url: string; state: string }[];
+    connectionId: string;
+    error?: string;
+  }> {
+    try {
+      const result = await this.addMcpServer(name, url, {
+        // Needed for OAuth servers — callbackHost cannot be auto-derived in RPC context
+        callbackHost: callbackHost ?? 'http://127.0.0.1:8787',
+      });
+      if (result.state === 'authenticating') {
+        return { success: true, requiresAuth: true, authUrl: result.authUrl, list: this.listPlugins(), connectionId: result.id };
+      }
+      return { success: true, requiresAuth: false, list: this.listPlugins(), connectionId: result.id };
+    } catch (err) {
+      return { success: false, requiresAuth: false, list: this.listPlugins(), connectionId: '', error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+
+  @callable()
+  async removePlugin(serverId: string): Promise<{ success: boolean; list: { id: string; name: string; url: string; state: string }[]; error?: string }> {
+    if (serverId === 'exa') return { success: false, list: this.listPlugins(), error: 'Cannot remove built-in exa server' };
+    try {
+      await this.removeMcpServer(serverId);
+      return { success: true, list: this.listPlugins() };
+    } catch (err) {
+      return { success: false, list: this.listPlugins(), error: err instanceof Error ? err.message : String(err) };
+    }
   }
 
   async onChatMessage(
@@ -39,6 +89,9 @@ export class ChatAgent extends AIChatAgent<Env> {
       : '';
 
     try {
+      const clientTools = _options?.clientTools?.length ? createToolsFromClientSchemas(_options.clientTools) : {};
+      const mcpTools = await this.mcp.getAITools();
+
       const result = streamText({
         model: workersai(modelName),
         system: buildSystemPrompt(),
@@ -46,7 +99,10 @@ export class ChatAgent extends AIChatAgent<Env> {
           messages: await convertToModelMessages(this.messages),
           toolCalls: "before-last-2-messages",
         }),
-        tools: (_options?.clientTools?.length ? createToolsFromClientSchemas(_options.clientTools) : {}),
+        tools: {
+          ...clientTools,
+          ...mcpTools,
+        },
         maxOutputTokens: 1024,
         temperature: 0.3,
         stopWhen: isStepCount(10),
@@ -57,13 +113,13 @@ export class ChatAgent extends AIChatAgent<Env> {
             try {
               const res: any = await this.env.AI.run('@cf/meta/llama-3.2-3b-instruct', {
                 messages: [
-                  { role: 'system', content: 'Generate a concise title (max 6 words) for a shopping assistant chat based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation, no explanation.' },
+                  { role: 'system', content: 'Generate a concise title (max 6 words) for a chat based on the user\'s first message. Reply with ONLY the title — no quotes, no punctuation, no explanation.' },
                   { role: 'user', content: userMessage },
                 ],
                 max_tokens: 15,
                 temperature: 0.3,
               });
-              const title = (res.response?.trim() || 'New Chat').replace(/^["']|["']$/g, '') || 'New Chat';
+              const title = (res.response?.trim() || 'New Chat').replace(/^[\"']|[\"']$/g, '') || 'New Chat';
               this.broadcast(JSON.stringify({ type: 'chat:title', title }));
             } catch {
               // Title generation failed — keep default "New Chat"

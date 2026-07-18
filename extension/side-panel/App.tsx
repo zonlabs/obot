@@ -10,6 +10,7 @@ import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
 import { createClientTools } from './utils/clientTools';
+import { PluginsModal } from './components/PluginsModal';
 import { ChatViewProps } from '../shared/types';
 
 // ── Constants ──
@@ -102,6 +103,7 @@ function ChatView(props: ChatViewProps) {
     onSelectModel,
     onSignIn,
     onSignOut,
+    onOpenPlugins,
   } = props;
 
   // ── Agent & chat — clean remount per threadId ──
@@ -291,27 +293,12 @@ function ChatView(props: ChatViewProps) {
           <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
             <SquarePen size={18} />
           </button>
-          {/* Auth button */}
-          {user ? (
-            <button
-              className="header-icon-btn profile-btn"
-              title={`Signed in as ${user.name || user.email}. Click to sign out.`}
-              onClick={onSignOut}
-              style={{ padding: 0 }}
-            >
-              <img src={user.picture} alt="" style={{ width: '24px', height: '24px', borderRadius: '50%', display: 'block' }} />
-            </button>
-          ) : (
-            <button className="header-icon-btn sign-in-icon-btn" title="Sign in with Google" onClick={onSignIn}>
-              <User size={18} />
-            </button>
-          )}
 
-          {/* History popup */}
+          {/* History / Actions popup */}
           <div style={{ position: 'relative' }} ref={historyRef}>
             <button
               className={`header-icon-btn ${showHistoryPopup ? 'active' : ''}`}
-              title="Recent chats"
+              title="Menu"
               onClick={() => setShowHistoryPopup(!showHistoryPopup)}
             >
               <MoreVertical size={18} />
@@ -323,6 +310,10 @@ function ChatView(props: ChatViewProps) {
                 setActiveThreadId={setActiveThreadId}
                 setShowHistoryPopup={setShowHistoryPopup}
                 onDeleteThread={handleDeleteThread}
+                user={user}
+                onSignIn={onSignIn}
+                onSignOut={onSignOut}
+                onOpenPlugins={onOpenPlugins}
               />
             )}
           </div>
@@ -472,6 +463,7 @@ export default function App() {
   const [showPopup,        setShowPopup]        = useState(false);
   const [showSelected,     setShowSelected]     = useState(false);
   const [showModelPopup,   setShowModelPopup]   = useState(false);
+  const [showPluginsModal, setShowPluginsModal] = useState(false);
   const [showHistoryPopup, setShowHistoryPopup] = useState(false);
 
   // ── Input state ──
@@ -692,7 +684,14 @@ export default function App() {
         onSelectModel={handleSelectModel}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
+        onOpenPlugins={() => setShowPluginsModal(true)}
       />
+      {showPluginsModal && (
+        <PluginsModal
+          agentId={activeThreadId}
+          onClose={() => setShowPluginsModal(false)}
+        />
+      )}
     </Suspense>
   );
 }

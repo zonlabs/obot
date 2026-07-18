@@ -33,6 +33,38 @@ app.route('/api', suggestionsRoute);
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 
+// OAuth success redirect — shown after completing MCP server authorization
+app.get('/', (c) => {
+  return c.html(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Authorization Complete</title>
+  <style>
+    body { margin: 0; display: flex; align-items: center; justify-content: center; height: 100vh;
+           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: #0f0f11; color: #e2e8f0; }
+    .card { text-align: center; padding: 40px; background: #1a1a1e; border-radius: 16px;
+            border: 1px solid #2a2a30; max-width: 360px; }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { margin: 0 0 8px; font-size: 20px; font-weight: 600; }
+    p { margin: 0; font-size: 14px; color: #94a3b8; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">✅</div>
+    <h1>Authorization Complete</h1>
+    <p>You can close this tab and return to the Obot extension. Click <strong>Refresh status</strong> in the Plugins modal to confirm the connection.</p>
+  </div>
+  <script>
+    // Auto-close after 3s if opened as a popup
+    if (window.opener) setTimeout(() => window.close(), 3000);
+  </script>
+</body>
+</html>`);
+});
+
 function corsify(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set('Access-Control-Allow-Origin', '*');
