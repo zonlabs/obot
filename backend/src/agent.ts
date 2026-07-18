@@ -15,9 +15,10 @@ function buildSystemPrompt(): string {
 
 export class ChatAgent extends AIChatAgent<Env> {
   async onStart() {
-    // SDK auto-restores previously connected servers from SQLite.
-    // Only register the built-in exa server (idempotent).
-    await this.addMcpServer("exa", EXA_MCP_URL, { id: "exa" });
+    // Register the built-in exa server only on the stable plugins DO instance.
+    if (this.name?.includes("plugins")) {
+      await this.addMcpServer("exa", EXA_MCP_URL, { id: "exa" });
+    }
   }
 
   // ── RPC methods (callable from the Hono plugins route via stub) ──
@@ -90,7 +91,27 @@ export class ChatAgent extends AIChatAgent<Env> {
 
     try {
       const clientTools = _options?.clientTools?.length ? createToolsFromClientSchemas(_options.clientTools) : {};
+
+      const pluginsAgentId = _options?.body?.pluginsAgentId as string | undefined;
+
+      if (pluginsAgentId) {
+        try {
+          const stub = this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)) as any;
+          const remotePlugins = await stub.listPlugins();
+          for (const plugin of remotePlugins) {
+            await this.addMcpServer(plugin.name, plugin.url);
+          }
+        } catch (err) {
+          console.error("[ChatAgent] Failed to fetch and connect remote plugins:", err);
+        }
+      }
+
       const mcpTools = await this.mcp.getAITools();
+
+      console.log('[ChatAgent] onChatMessage', {
+        clientTools: Object.keys(clientTools),
+        mcpTools: Object.keys(mcpTools),
+      });
 
       const result = streamText({
         model: workersai(modelName),

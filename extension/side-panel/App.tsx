@@ -135,6 +135,7 @@ function ChatView(props: ChatViewProps) {
     onSignIn,
     onSignOut,
     onOpenPlugins,
+    pluginsAgentId,
   } = props;
 
   // ── Agent & chat — clean remount per threadId ──
@@ -182,7 +183,7 @@ function ChatView(props: ChatViewProps) {
 
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
-    body: { model },
+    body: { model, pluginsAgentId },
     onToolCall: handleToolCall,
     tools: clientTools,
   });
@@ -738,6 +739,7 @@ export default function App() {
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
         onOpenPlugins={() => setShowPluginsModal(true)}
+        pluginsAgentId={pluginsAgentId}
       />
       {showPluginsModal && (
         <PluginsModal
