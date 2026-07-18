@@ -1,8 +1,5 @@
 import { AITool } from '@cloudflare/ai-chat/react';
-
-export interface ClientToolsContext {
-  getSelectedTabs: () => { url: string; title: string }[];
-}
+import { ClientToolsContext } from '../../shared/types';
 
 export function createClientTools(context: ClientToolsContext): Record<string, AITool<any, any>> {
   return {
@@ -12,13 +9,14 @@ export function createClientTools(context: ClientToolsContext): Record<string, A
         type: 'object',
         properties: {
           url: { type: 'string', description: 'The full URL of the tab to read' },
+          offset: { type: 'number', description: 'The character offset to start reading from (defaults to 0). Use this to paginate and read long pages in chunks.' },
         },
         required: ['url'],
       },
       execute: async (input: unknown) => {
         console.log('[getTabContent] execute called with input:', input);
-        const { url } = input as { url: string };
-        console.log('[getTabContent] url:', url);
+        const { url, offset = 0 } = input as { url: string; offset?: number };
+        console.log('[getTabContent] url:', url, 'offset:', offset);
         
         const cleanUrl = (u: string) => {
           try {
@@ -51,17 +49,22 @@ export function createClientTools(context: ClientToolsContext): Record<string, A
           const results = await chrome.scripting.executeScript({
             target: { tabId: tab.id },
             func: () => {
-              return (document.body?.innerText || '')
-                .replace(/\s+/g, ' ')
-                .trim()
-                .slice(0, 4000);
+              return document.body?.innerText || '';
             }
           });
 
           if (results && results[0]) {
-            const text = results[0].result;
-            console.log('[getTabContent] executeScript result len:', text?.length || 0);
-            return text || 'No content available';
+            const fullText = (results[0].result || '').replace(/\s+/g, ' ').trim();
+            const totalLength = fullText.length;
+            const chunk = fullText.slice(offset, offset + 2500);
+            console.log('[getTabContent] executeScript total len:', totalLength, 'sliced chunk len:', chunk.length);
+            
+            return {
+              content: chunk || 'No content available at this offset',
+              offset: offset,
+              totalLength: totalLength,
+              hasMore: offset + 2500 < totalLength
+            };
           }
           return 'No content available';
         } catch (e) {

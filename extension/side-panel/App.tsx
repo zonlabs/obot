@@ -10,6 +10,7 @@ import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
 import { createClientTools } from './utils/clientTools';
+import { ChatViewProps } from '../shared/types';
 
 // ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
@@ -62,46 +63,6 @@ const MODELS_DATA: ModelEntry[] = [
 
 // ── ChatView sub-component: keyed by activeThreadId so it remounts cleanly ──
 
-interface ChatViewProps {
-  activeThreadId: string;
-  activeThreadTitle: string;
-  updateActiveThreadTitle: (title: string) => void;
-  handleNewChat: () => void;
-  handleDeleteThread: (id: string) => void;
-  ensureThreadEntry: () => void;
-  threads: { id: string; title: string; createdAt: number }[];
-  setActiveThreadId: (id: string) => void;
-  model: string;
-  user: any;
-  tabs: any[];
-  selectedUrls: string[];
-  activeTabUrl: string;
-  activeTabTitle: string;
-  activeTabSuggestions: string[];
-  suggestionsLoading: boolean;
-  showPopup: boolean;
-  setShowPopup: (v: boolean) => void;
-  showSelected: boolean;
-  setShowSelected: (v: boolean) => void;
-  selectedPanelRef: React.RefObject<HTMLDivElement | null>;
-  showModelPopup: boolean;
-  setShowModelPopup: (v: boolean) => void;
-  showHistoryPopup: boolean;
-  setShowHistoryPopup: (v: boolean) => void;
-  inputValue: string;
-  setInputValue: (v: string) => void;
-  inputRef: React.RefObject<HTMLTextAreaElement | null>;
-  attachPopupRef: React.RefObject<HTMLDivElement | null>;
-  modelDropdownRef: React.RefObject<HTMLDivElement | null>;
-  historyRef: React.RefObject<HTMLDivElement | null>;
-  selectedModelLabel: string;
-  selectedModelIcon: string;
-  onToggleUrl: (url: string) => void;
-  onSelectModel: (val: string) => void;
-  onSignIn: () => void;
-  onSignOut: () => void;
-}
-
 function ChatView(props: ChatViewProps) {
   const {
     activeThreadId,
@@ -151,15 +112,20 @@ function ChatView(props: ChatViewProps) {
     onIdentityChange: () => {},
   });
 
+  const getSelectedTabsRef = useRef<() => { url: string; title: string }[]>(() => []);
+
+  // Keep the ref up-to-date with the latest state
+  getSelectedTabsRef.current = () => {
+    return tabs
+      .filter((t: any) => selectedUrls.includes(t.url))
+      .map((t: any) => ({ url: t.url, title: t.title || '' }));
+  };
+
   const clientTools = useMemo(() => {
     return createClientTools({
-      getSelectedTabs: () => {
-        return tabs
-          .filter((t: any) => selectedUrls.includes(t.url))
-          .map((t: any) => ({ url: t.url, title: t.title || '' }));
-      }
+      getSelectedTabs: () => getSelectedTabsRef.current()
     });
-  }, [tabs, selectedUrls]);
+  }, []); // Stable tools reference
 
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
@@ -305,7 +271,7 @@ function ChatView(props: ChatViewProps) {
   useEffect(() => { scrollToBottom(); }, [messages, scrollToBottom]);
 
   // ── Render ──
-  const isStreaming = status === 'streaming';
+  const isStreaming = status === 'streaming' || status === 'submitted';
 
   return (
     <>

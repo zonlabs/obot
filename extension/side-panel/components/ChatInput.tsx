@@ -1,5 +1,6 @@
 import React, { RefObject, useState } from 'react';
 import { Plus, ChevronDown, Check, ArrowUp, Square, X } from 'lucide-react';
+import { Tab, ModelTier, ModelEntry } from '../../shared/types';
 
 /* ── small local helpers ── */
 const CircleCheckIcon = () => (
@@ -67,28 +68,11 @@ const Favicon: React.FC<{ url: string; size?: number; className?: string }> = ({
   );
 };
 
-type ModelTier = 'basic' | 'intermediate' | 'advanced';
-
 const TIER_CONFIG: Record<ModelTier, { label: string; color: string }> = {
   basic:        { label: 'Basic',        color: 'var(--text-muted, #8e8e8e)' },
   intermediate: { label: 'Intermediate', color: 'var(--text-secondary, #b0b0b0)' },
   advanced:     { label: 'Advanced',     color: 'var(--text-primary, #ffffff)' },
 };
-
-interface ModelEntry {
-  value: string;
-  label: string;
-  desc: string;
-  icon: string;
-  tier: ModelTier;
-}
-
-interface Tab {
-  url: string;
-  title?: string;
-  active?: boolean;
-  tabId?: number;
-}
 
 interface ChatInputProps {
   /* textarea state */

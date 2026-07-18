@@ -1,4 +1,4 @@
-import { ProductData, CanvasState, ChatRequest, ChatResponse } from './shared/types';
+import { ProductData, CanvasState } from './shared/types';
 
 const WORKER_URL = 'http://127.0.0.1:8787';
 

@@ -11,9 +11,9 @@ function buildSystemPrompt(): string {
   return "You are Obot, a concise assistant that helps the user with whatever they need. " +
          "You have access to the following client-side tools:\n" +
          "- getActiveTabs: gets the URL, title, and type (active, selected, active & selected) of the user's currently active tabs and explicitly attached tabs.\n" +
-         "- getTabContent: reads the visible text content from any tab by URL.\n\n" +
+         "- getTabContent: reads a portion of the visible text content from any tab by URL. Supports offset-based pagination (using the offset parameter) for reading long pages in chunks.\n\n" +
          "Guidelines:\n" +
-         "1. If the user asks about the page/tab they are currently on or looking at, use getActiveTabs first to discover the active URLs, then use getTabContent with the relevant URL to read its content.";
+         "1. If the user asks about the page/tab they are currently on or looking at, use getActiveTabs first to discover the active URLs, then use getTabContent with the relevant URL to read its content. If the page is long (indicated by hasMore: true in the tool output), you can use the offset parameter in subsequent calls to read more.";
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
