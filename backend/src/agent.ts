@@ -1,7 +1,7 @@
 import { AIChatAgent, OnChatMessageOptions, createToolsFromClientSchemas } from "@cloudflare/ai-chat";
 import { callable } from "agents";
 import { createWorkersAI } from "workers-ai-provider";
-import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount } from "ai";
+import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount, UIMessage } from "ai";
 import { Env } from "./db/schema";
 
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
@@ -108,11 +108,6 @@ export class ChatAgent extends AIChatAgent<Env> {
 
       const mcpTools = await this.mcp.getAITools();
 
-      console.log('[ChatAgent] onChatMessage', {
-        clientTools: Object.keys(clientTools),
-        mcpTools: Object.keys(mcpTools),
-      });
-
       const result = streamText({
         model: workersai(modelName),
         system: buildSystemPrompt(),
@@ -157,5 +152,25 @@ export class ChatAgent extends AIChatAgent<Env> {
       console.error('[ChatAgent]', msg);
       return new Response(msg, { status: 500 });
     }
+  }
+
+  override async persistMessages(
+    messages: UIMessage[],
+    excludeBroadcastIds?: string[],
+    options?: { _deleteStaleRows?: boolean }
+  ): Promise<void> {
+    const clientIds = new Set(messages.map(m => m.id));
+    const staleIds = this.messages
+      .map(m => m.id)
+      .filter(id => !clientIds.has(id));
+
+    if (staleIds.length > 0) {
+      for (const id of staleIds) {
+        this.sql`DELETE FROM cf_ai_chat_agent_messages WHERE id = ${id}`;
+        (this as any)._persistedMessageCache?.delete(id);
+      }
+    }
+
+    await super.persistMessages(messages, excludeBroadcastIds, options);
   }
 }
