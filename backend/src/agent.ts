@@ -14,6 +14,8 @@ function buildSystemPrompt(): string {
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
+  private _userId: string | null = null;
+
   async onStart() {
     // Register the built-in exa server only on the stable plugins DO instance.
     if (this.name?.includes("plugins")) {
@@ -59,6 +61,8 @@ export class ChatAgent extends AIChatAgent<Env> {
     _onFinish: GenerateTextOnEndCallback,
     _options?: OnChatMessageOptions
   ) {
+    this._userId = (_options?.body?.userId as string) || null;
+
     const workersai = createWorkersAI({ binding: this.env.AI });
     const modelName = (_options?.body?.model as string) || DEFAULT_MODEL;
 
@@ -142,6 +146,13 @@ export class ChatAgent extends AIChatAgent<Env> {
     excludeBroadcastIds?: string[],
     options?: { _deleteStaleRows?: boolean }
   ): Promise<void> {
+    if (!this._userId) {
+      await super.persistMessages(messages, excludeBroadcastIds, options);
+      this.sql`DELETE FROM cf_ai_chat_agent_messages`;
+      (this as any)._persistedMessageCache?.clear();
+      return;
+    }
+
     const clientIds = new Set(messages.map(m => m.id));
     const staleIds = this.messages
       .map(m => m.id)

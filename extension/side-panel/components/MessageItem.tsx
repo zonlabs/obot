@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Pencil, Check, List, Search, Globe, FileText, AlertCircle } from 'lucide-react';
+import { Wrench, RotateCw, Copy, MoreVertical, ChevronDown, ChevronUp, ChevronRight, Pencil, Check, List, Search, Globe, FileText, AlertCircle, AppWindow } from 'lucide-react';
 import { getToolApproval } from '@cloudflare/ai-chat/react';
 import { renderMarkdown } from '../utils/markdown';
 
@@ -82,11 +82,11 @@ function getToolSummary(rawName: string, args: any, output: any, state: string):
   }
 
   // 2. Tab content
-  if (name.includes('gettabcontent') || name.includes('get_tab_content')) {
+  if (name.includes('gettabcontent')) {
     if (isExecuting) return 'Reading tab content...';
     return 'Read active tab content';
   }
-  if (name.includes('getactivetabs') || name.includes('get_active_tabs')) {
+  if (name.includes('getactivetabs')) {
     if (isExecuting) return 'Retrieving active tabs...';
     if (hasCount) return `Retrieved ${count} active tab${count === 1 ? '' : 's'}`;
     return 'Retrieved active tabs';
@@ -123,21 +123,16 @@ function getToolIcon(rawName: string, state: string) {
   if (!rawName) return <Wrench size={13} />;
   const name = rawName.toLowerCase();
 
-  if (name.includes('web_search') || name.includes('search_web')) {
-    return <Search size={13} />;
-  }
-  if (name.includes('web_fetch') || name.includes('fetch_web')) {
+  if (name === 'gettabcontent' || name === 'getactivetabs')
+    return <AppWindow size={13} />;
+  if (name.includes('search')) return <Search size={13} />;
+  if (name.includes('fetch') || name.includes('navigate') || name.includes('browse') || name.includes('scrape') || name.includes('web'))
     return <Globe size={13} />;
-  }
-  if (name.includes('tab')) {
-    return <Globe size={13} />;
-  }
-  if (name.includes('list') || name.includes('plugin') || name.includes('resource') || name.includes('tool')) {
+  if (name.includes('list'))
     return <List size={13} />;
-  }
-  if (name.includes('read') || name.includes('write') || name.includes('file')) {
+  if (name.includes('get') || name.includes('read') || name.includes('file') || name.includes('export'))
     return <FileText size={13} />;
-  }
+
   return <Wrench size={13} />;
 }
 
@@ -220,6 +215,10 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part, allParts, a
 
       {isOpen && (
         <div className="tool-call-content">
+          <div className="tool-call-name-section">
+            <span className="tool-call-section-title">Tool</span>
+            <span className="tool-call-name-value">{toolName}</span>
+          </div>
           <div>
             <div className="tool-call-section-title">Arguments</div>
             <pre className="tool-call-code">{argsString}</pre>
@@ -521,7 +520,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
       {/* Feedback row — only for finished assistant messages */}
       {showFeedback && (
-        <div className="feedback-row">
+        <div className={`feedback-row ${isLatestAssistant ? '' : 'feedback-row-hover'}`}>
           {isLatestAssistant && (
             <button className="feedback-btn" title="Regenerate" onClick={() => onRegenerate(msg.id)}>
               <RotateCw size={14} />

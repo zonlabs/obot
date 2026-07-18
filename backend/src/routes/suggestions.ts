@@ -16,7 +16,7 @@ route.post('/suggestions', async (c) => {
     pageText ? `Page excerpt:\n${pageText.slice(0, 600)}` : '',
   ].filter(Boolean).join('\n');
 
-  const prompt = `You are a helpful browser assistant. Based on the browser tab context below, generate exactly 4 short, highly relevant questions or prompts that the user is most likely to want to ask. The prompts should feel natural, specific to the content, and immediately useful.
+  const prompt = `You are a helpful browser assistant. Based on the browser tab context below, generate exactly 3 short, highly relevant questions or prompts that the user is most likely to want to ask. The prompts should feel natural, specific to the content, and immediately useful.
 
 ${contextBlock}
 
@@ -24,10 +24,10 @@ Rules:
 - Each prompt must be a complete, natural sentence
 - Be specific to the page content — not generic
 - Max 10 words per prompt
-- Reply ONLY with a valid JSON array of 4 strings, no markdown, no explanation
+- Reply ONLY with a valid JSON array of 3 strings, no markdown, no explanation
 
 Example output:
-["Explain what this function does","Find the npm package docs","What are the open issues?","How do I contribute to this?"]`;
+["Explain what this function does","Find the npm package docs","What are the open issues?"]`;
 
   const MODELS = [
     '@cf/qwen/qwen3-30b-a3b-fp8',
@@ -72,7 +72,7 @@ Example output:
 
       const valid = (Array.isArray(arr) ? arr : [])
         .filter((s): s is string => typeof s === 'string' && s.trim().length > 0)
-        .slice(0, 4);
+        .slice(0, 3);
 
       if (valid.length > 0) {
         suggestions = valid;

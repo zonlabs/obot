@@ -11,6 +11,7 @@ import chatRoute from './routes/chat';
 import authRoute from './routes/auth';
 import threadsRoute from './routes/threads';
 import suggestionsRoute from './routes/suggestions';
+import faviconRoute from './routes/favicon';
 
 export { ChatAgent };
 
@@ -30,6 +31,7 @@ app.route('/api', chatRoute);
 app.route('/api', authRoute);
 app.route('/api', threadsRoute);
 app.route('/api', suggestionsRoute);
+app.route('/api', faviconRoute);
 
 app.get('/api/health', (c) => c.json({ status: 'ok' }));
 

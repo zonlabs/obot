@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
-import { SquarePen, MoreVertical, PictureInPicture2, User, X } from 'lucide-react';
+import { SquarePen, MoreVertical, PictureInPicture2, User, X, CircleX } from 'lucide-react';
 
 import { HistoryPopup } from './components/HistoryPopup';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -10,7 +10,7 @@ import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
 import { createClientTools } from './utils/clientTools';
-import { PluginsPage } from './components/PluginsPage';
+import { PluginsScreen } from './components/PluginsScreen';
 import { ChatViewProps } from '../shared/types';
 
 // ── Constants ──
@@ -181,9 +181,9 @@ function ChatView(props: ChatViewProps) {
     });
   }, [clientTools]);
 
-  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
+  const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages, error: chatError } = useAgentChat({
     agent,
-    body: { model, pluginsAgentId },
+    body: { model, pluginsAgentId, userId: user?.id || null },
     onToolCall: handleToolCall,
     tools: clientTools,
   });
@@ -370,6 +370,16 @@ function ChatView(props: ChatViewProps) {
             )}
           </div>
 
+          {user && (
+            user.picture ? (
+              <img className="header-avatar-img" src={user.picture} alt="" title={user.name} />
+            ) : (
+              <div className="header-avatar" title={user.name}>
+                {user.name?.charAt(0).toUpperCase() || '?'}
+              </div>
+            )
+          )}
+
           <button className="header-icon-btn" title={popoutMode ? 'Attach to sidebar' : 'Pop out chat'} onClick={handleTogglePopout}>
             <PictureInPicture2 size={18} />
           </button>
@@ -382,6 +392,7 @@ function ChatView(props: ChatViewProps) {
           <WelcomeScreen
             user={user}
             onSuggestionClick={handleSuggestionClick}
+            onSignIn={onSignIn}
             activeTabUrl={activeTabUrl}
             activeTabTitle={activeTabTitle}
             llmSuggestions={activeTabSuggestions}
@@ -403,8 +414,15 @@ function ChatView(props: ChatViewProps) {
           ))
         )}
 
+        {chatError && (
+          <div className="chat-error-banner">
+            <CircleX size={14} style={{ flexShrink: 0 }} />
+            <span>{chatError instanceof Error ? chatError.message : String(chatError)}</span>
+          </div>
+        )}
+
         {(isStreaming || activeTool) && (
-          <LoadingIndicator toolName={activeTool} />
+          <LoadingIndicator />
         )}
 
         <div ref={messagesEndRef} />
@@ -536,7 +554,7 @@ export default function App() {
     handleNewChat: _handleNewChat,
     handleDeleteThread,
     ensureThreadEntry,
-  } = useThreads();
+  } = useThreads(!!user);
 
   // ── Derived ──
   const pluginsAgentId = useMemo(() => getPluginsAgentId(user), [user?.id]);
@@ -685,7 +703,11 @@ export default function App() {
 
   // ── Handlers ──
   const handleSignIn  = () => chrome.runtime.sendMessage({ type: 'auth:signin' },  (r) => { if (r?.user) setUser(r.user); });
-  const handleSignOut = () => chrome.runtime.sendMessage({ type: 'auth:signout' }, () => setUser(null));
+  const handleSignOut = () => chrome.runtime.sendMessage({ type: 'auth:signout' }, () => {
+    setUser(null);
+    localStorage.clear();
+    window.location.reload();
+  });
 
   const handleSelectModel = (val: string) => {
     setModel(val);
@@ -699,8 +721,9 @@ export default function App() {
   // ── Render ──
   if (activeView === 'plugins') {
     return (
-      <PluginsPage
+      <PluginsScreen
         agentId={pluginsAgentId}
+        userId={user?.id || null}
         onClose={() => setActiveView('chat')}
       />
     );

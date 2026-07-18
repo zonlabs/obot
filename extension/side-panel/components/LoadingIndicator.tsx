@@ -1,10 +1,6 @@
 import React from 'react';
 
-interface LoadingIndicatorProps {
-  toolName?: string | null;
-}
-
-export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ toolName }) => {
+export const LoadingIndicator: React.FC = () => {
   return (
     <div className="loading-indicator">
       <div className="loading-wave">
@@ -14,11 +10,6 @@ export const LoadingIndicator: React.FC<LoadingIndicatorProps> = ({ toolName }) 
         <span className="loading-bar" />
         <span className="loading-bar" />
       </div>
-      {toolName && (
-        <span className="loading-tool-badge">
-          {toolName.replace(/([A-Z])/g, ' $1').trim()}
-        </span>
-      )}
     </div>
   );
 };

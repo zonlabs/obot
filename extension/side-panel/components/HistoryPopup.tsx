@@ -34,16 +34,18 @@ export const HistoryPopup: React.FC<HistoryPopupProps> = ({
     <div className="history-popup">
       {/* Menu Actions */}
       <div className="history-popup-menu-section">
-        <button
-          className="history-popup-menu-item"
-          onClick={() => {
-            onOpenPlugins();
-            setShowHistoryPopup(false);
-          }}
-        >
-          <Puzzle size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
-          <span className="history-popup-menu-item-text">MCP Plugins</span>
-        </button>
+        {user && (
+          <button
+            className="history-popup-menu-item"
+            onClick={() => {
+              onOpenPlugins();
+              setShowHistoryPopup(false);
+            }}
+          >
+            <Puzzle size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
+            <span className="history-popup-menu-item-text">MCP Plugins</span>
+          </button>
+        )}
 
         {user ? (
           <button
@@ -55,7 +57,7 @@ export const HistoryPopup: React.FC<HistoryPopupProps> = ({
           >
             <LogOut size={16} color="var(--text-secondary)" style={{ flexShrink: 0 }} />
             <span className="history-popup-menu-item-text">
-              Sign Out ({user.name || user.email})
+              Sign Out ({user.email})
             </span>
           </button>
         ) : (

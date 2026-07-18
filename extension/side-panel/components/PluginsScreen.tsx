@@ -1,8 +1,25 @@
 import React, { useState, useCallback } from 'react';
-import { ArrowLeft, Trash2, Cpu, FileText, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { ArrowLeft, Trash2, Cpu, FileText, Plus, ChevronDown, ChevronRight, Globe, CircleCheck, XCircle, Loader, Lock } from 'lucide-react';
 import { useAgent } from 'agents/react';
 
 const WORKER_URL = 'http://127.0.0.1:8787';
+
+function getFaviconUrl(serverUrl: string): string {
+  try {
+    const domain = new URL(serverUrl).hostname;
+    return `${WORKER_URL}/api/favicon?hostname=${domain}`;
+  } catch {
+    return '';
+  }
+}
+
+function getDomain(serverUrl: string): string {
+  try {
+    return new URL(serverUrl).hostname;
+  } catch {
+    return serverUrl;
+  }
+}
 
 interface McpServer {
   id: string;
@@ -26,8 +43,9 @@ interface McpResource {
   mimeType?: string;
 }
 
-interface PluginsPageProps {
+interface PluginsScreenProps {
   agentId: string;
+  userId: string | null;
   onClose: () => void;
 }
 
@@ -40,7 +58,7 @@ function mcpStateToServers(mcpState: any): McpServer[] {
   }));
 }
 
-export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) => {
+export const PluginsScreen: React.FC<PluginsScreenProps> = ({ agentId, userId, onClose }) => {
   const [servers, setServers] = useState<McpServer[]>([]);
   const [tools, setTools] = useState<McpTool[]>([]);
   const [resources, setResources] = useState<McpResource[]>([]);
@@ -53,6 +71,11 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
   const [authPending, setAuthPending] = useState<{ name: string; url: string } | null>(null);
   const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
   const [expandedDescs, setExpandedDescs] = useState<Set<string>>(new Set());
+  const [failedFavicons, setFailedFavicons] = useState<Set<string>>(new Set());
+
+  const onFaviconError = (domain: string) => {
+    setFailedFavicons(prev => { const next = new Set(prev); next.add(domain); return next; });
+  };
 
   const toggleDesc = (key: string) => {
     setExpandedDescs(prev => {
@@ -115,18 +138,6 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
     }
   };
 
-  const getStatusColor = (state: string) => {
-    switch (state) {
-      case 'ready': return '#4ade80';
-      case 'connecting':
-      case 'connected':
-      case 'discovering': return '#facc15';
-      case 'authenticating': return '#60a5fa';
-      case 'failed': return '#f87171';
-      default: return '#6b7280';
-    }
-  };
-
   // Find server name by serverId
   const getServerName = (serverId: string) => {
     const found = servers.find(s => s.id === serverId);
@@ -136,6 +147,27 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
     }
     return serverId;
   };
+
+  if (!userId) {
+    return (
+      <div className="plugins-page-container">
+        <header className="plugins-page-header">
+          <button className="back-btn" onClick={onClose} title="Back to Chat">
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+          <h2 className="plugins-page-title">Plugins & Capabilities</h2>
+        </header>
+        <div className="plugins-page-content" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '48px 24px', textAlign: 'center', gap: '12px' }}>
+          <div style={{ fontSize: 32 }}>🔒</div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-primary)' }}>Sign in required</div>
+          <div style={{ fontSize: 13, color: 'var(--text-secondary)', maxWidth: 280, lineHeight: 1.5 }}>
+            Sign in with Google to connect MCP plugins and extend your assistant's capabilities.
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="plugins-page-container">
@@ -147,18 +179,13 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
         </button>
         <h2 className="plugins-page-title">Plugins & Capabilities</h2>
         <div className="connection-status" style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span
-            style={{
-              width: 8,
-              height: 8,
-              borderRadius: '50%',
-              backgroundColor:
-                connectionStatus === 'connected' ? '#4ade80' :
-                connectionStatus === 'connecting' ? '#facc15' : '#f87171',
-              boxShadow:
-                connectionStatus === 'connected' ? '0 0 6px #4ade80' : undefined,
-            }}
-          />
+          {connectionStatus === 'connected' ? (
+            <CircleCheck size={14} style={{ color: '#4ade80' }} />
+          ) : connectionStatus === 'connecting' ? (
+            <Loader size={14} className="spin" />
+          ) : (
+            <XCircle size={14} style={{ color: '#f87171' }} />
+          )}
           <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>
             {connectionStatus === 'connected' ? 'Connected' :
              connectionStatus === 'connecting' ? 'Connecting...' : 'Disconnected'}
@@ -235,13 +262,24 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
                   <div key={s.id} className="plugin-card">
                     <div className="plugin-header">
                       <div className="plugin-name-row">
-                        <span
-                          className="status-dot"
-                          style={{
-                            backgroundColor: getStatusColor(s.state),
-                            boxShadow: s.state === 'ready' ? '0 0 6px #4ade80' : undefined,
-                          }}
-                        />
+                        {s.state === 'ready' ? (
+                          <CircleCheck size={14} style={{ color: '#4ade80', flexShrink: 0 }} />
+                        ) : s.state === 'authenticating' ? (
+                          <Lock size={14} style={{ color: '#60a5fa', flexShrink: 0 }} />
+                        ) : s.state === 'failed' ? (
+                          <XCircle size={14} style={{ color: '#f87171', flexShrink: 0 }} />
+                        ) : (
+                          <Loader size={14} className="spin" style={{ flexShrink: 0 }} />
+                        )}
+                        {(() => {
+                          const domain = getDomain(s.url);
+                          const faviconUrl = getFaviconUrl(s.url);
+                          return failedFavicons.has(domain) || !faviconUrl ? (
+                            <Globe size={14} className="plugin-favicon" />
+                          ) : (
+                            <img src={faviconUrl} alt="" className="plugin-favicon" onError={() => onFaviconError(domain)} />
+                          );
+                        })()}
                         <span className="plugin-name">{s.name}</span>
                       </div>
                       {s.name !== 'exa' ? (

@@ -1,7 +1,9 @@
 import React from 'react';
+import { SquareArrowOutUpRight } from 'lucide-react';
 
 interface WelcomeScreenProps {
   onSuggestionClick: (text: string) => void;
+  onSignIn?: () => void;
   user?: { name?: string } | null;
   activeTabUrl?: string;
   activeTabTitle?: string;
@@ -17,15 +19,13 @@ function getContextLabel(url: string, title: string): string {
   return title || 'Current tab';
 }
 
-const SkeletonChip: React.FC = () => (
-  <div
-    className="suggestion-chip skeleton-glow"
-    style={{ minHeight: '68px', border: 'none', cursor: 'default' }}
-  />
+const SkeletonChip = () => (
+  <div className="skeleton-glow suggestion-chip-skeleton" />
 );
 
 export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
   onSuggestionClick,
+  onSignIn,
   user,
   activeTabUrl = '',
   activeTabTitle = '',
@@ -45,25 +45,42 @@ export const WelcomeScreen: React.FC<WelcomeScreenProps> = ({
 
       {contextLabel && (
         <p className="welcome-context-label">
-          {suggestionsLoading
-            ? 'Personalising suggestions\u2026'
-            : `Based on \u00b7 ${contextLabel}`}
+          <SquareArrowOutUpRight size={12} className="welcome-context-icon" />
+          <span className="welcome-context-site">{contextLabel}</span>
+          {!user && (
+            <>
+              <span className="welcome-context-divider">|</span>
+              <button className="welcome-signin-btn" onClick={onSignIn}>
+                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="16" height="16" />
+                Sign In
+              </button>
+            </>
+          )}
         </p>
       )}
 
-      <div className="suggestion-chips">
-        {suggestionsLoading
-          ? [0, 1, 2, 3].map(i => <SkeletonChip key={i} />)
-          : llmSuggestions.map((text) => (
-              <button
-                key={text}
-                className="suggestion-chip"
-                onClick={() => onSuggestionClick(text)}
-              >
-                <span className="suggestion-chip-text">{text}</span>
-              </button>
-            ))}
-      </div>
+      {!user && !contextLabel && (
+        <button className="welcome-signin-btn" onClick={onSignIn}>
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="" width="16" height="16" />
+          Sign In
+        </button>
+      )}
+
+      {(suggestionsLoading || llmSuggestions.length > 0) && (
+        <div className="suggestion-chips">
+          {suggestionsLoading
+            ? [0, 1, 2].map(i => <SkeletonChip key={i} />)
+            : llmSuggestions.map((text) => (
+                <button
+                  key={text}
+                  className="suggestion-chip"
+                  onClick={() => onSuggestionClick(text)}
+                >
+                  <span className="suggestion-chip-text">{text}</span>
+                </button>
+              ))}
+        </div>
+      )}
     </div>
   );
 };

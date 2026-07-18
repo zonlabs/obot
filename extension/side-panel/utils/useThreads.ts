@@ -51,13 +51,14 @@ async function apiFetch(path: string, options?: RequestInit) {
   });
 }
 
-export function useThreads() {
-  const [threads, setThreads] = useState<ChatThread[]>(() => readLocalThreads());
-  const [activeThreadId, setActiveThreadIdState] = useState<string>(readLocalActiveId);
+export function useThreads(persist: boolean = true) {
+  const [threads, setThreads] = useState<ChatThread[]>(() => persist ? readLocalThreads() : []);
+  const [activeThreadId, setActiveThreadIdState] = useState<string>(persist ? readLocalActiveId() : crypto.randomUUID());
 
   const didSyncRef = useRef(false);
 
   useEffect(() => {
+    if (!persist) return;
     if (didSyncRef.current) return;
     didSyncRef.current = true;
 
@@ -75,7 +76,7 @@ export function useThreads() {
         });
       })
       .catch(() => {});
-  }, []);
+  }, [persist]);
 
   const activeThreadTitle = useMemo(() => {
     const found = threads.find(t => t.id === activeThreadId);
@@ -84,8 +85,8 @@ export function useThreads() {
 
   const setActiveThreadId = useCallback((id: string) => {
     setActiveThreadIdState(id);
-    localStorage.setItem(LS_ACTIVE, id);
-  }, []);
+    if (persist) localStorage.setItem(LS_ACTIVE, id);
+  }, [persist]);
 
   const syncUpsert = useCallback((thread: ChatThread) => {
     apiFetch('/threads', {
@@ -104,11 +105,13 @@ export function useThreads() {
       if (exists) return prev;
       const thread: ChatThread = { id: activeThreadId, title: 'New Chat', createdAt: Date.now() };
       const updated = [thread, ...prev];
-      writeLocalThreads(updated);
-      syncUpsert(thread);
+      if (persist) {
+        writeLocalThreads(updated);
+        syncUpsert(thread);
+      }
       return updated;
     });
-  }, [activeThreadId, syncUpsert]);
+  }, [activeThreadId, syncUpsert, persist]);
 
   const updateActiveThreadTitle = useCallback((promptText: string) => {
     setThreads(prev => {
@@ -119,35 +122,37 @@ export function useThreads() {
       const next = { ...prev[idx], title: truncated };
       const updated = [...prev];
       updated[idx] = next;
-      writeLocalThreads(updated);
-      syncUpsert(next);
+      if (persist) {
+        writeLocalThreads(updated);
+        syncUpsert(next);
+      }
       return updated;
     });
-  }, [activeThreadId, syncUpsert]);
+  }, [activeThreadId, syncUpsert, persist]);
 
   const handleNewChat = useCallback(() => {
     const newId = crypto.randomUUID();
     setActiveThreadIdState(newId);
-    localStorage.setItem(LS_ACTIVE, newId);
-  }, []);
+    if (persist) localStorage.setItem(LS_ACTIVE, newId);
+  }, [persist]);
 
   const handleDeleteThread = useCallback((id: string) => {
     setThreads(prev => {
       const updated = prev.filter(t => t.id !== id);
-      writeLocalThreads(updated);
+      if (persist) writeLocalThreads(updated);
       return updated;
     });
-    syncDelete(id);
+    if (persist) syncDelete(id);
 
     setThreads(prev => {
       if (id === activeThreadId) {
         const nextId = prev.length > 0 ? prev[0].id : crypto.randomUUID();
         setActiveThreadIdState(nextId);
-        localStorage.setItem(LS_ACTIVE, nextId);
+        if (persist) localStorage.setItem(LS_ACTIVE, nextId);
       }
       return prev;
     });
-  }, [activeThreadId, syncDelete]);
+  }, [activeThreadId, syncDelete, persist]);
 
   return {
     threads,
