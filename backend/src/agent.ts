@@ -21,56 +21,37 @@ export class ChatAgent extends AIChatAgent<Env> {
     }
   }
 
-  // ── RPC methods (callable from the Hono plugins route via stub) ──
-
   @callable()
-  listPlugins(): { id: string; name: string; url: string; state: string }[] {
-    const state = this.getMcpServers();
-    return Object.entries(state.servers).map(([id, s]: [string, any]) => ({
-      id,
-      name: s.name,
-      url: s.server_url ?? '',
-      state: s.state,
-    }));
+  getMcpState() {
+    return this.getMcpServers();
   }
 
-
-
   @callable()
-  async addPlugin(
-    name: string,
-    url: string,
-    callbackHost?: string
-  ): Promise<{
+  async addPlugin(name: string, url: string): Promise<{
     success: boolean;
     requiresAuth: boolean;
     authUrl?: string;
-    list: { id: string; name: string; url: string; state: string }[];
-    connectionId: string;
     error?: string;
   }> {
     try {
-      const result = await this.addMcpServer(name, url, {
-        // Needed for OAuth servers — callbackHost cannot be auto-derived in RPC context
-        callbackHost: callbackHost ?? 'http://127.0.0.1:8787',
-      });
+      const result = await this.addMcpServer(name, url);
       if (result.state === 'authenticating') {
-        return { success: true, requiresAuth: true, authUrl: result.authUrl, list: this.listPlugins(), connectionId: result.id };
+        return { success: true, requiresAuth: true, authUrl: result.authUrl };
       }
-      return { success: true, requiresAuth: false, list: this.listPlugins(), connectionId: result.id };
+      return { success: true, requiresAuth: false };
     } catch (err) {
-      return { success: false, requiresAuth: false, list: this.listPlugins(), connectionId: '', error: err instanceof Error ? err.message : String(err) };
+      return { success: false, requiresAuth: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
   @callable()
-  async removePlugin(serverId: string): Promise<{ success: boolean; list: { id: string; name: string; url: string; state: string }[]; error?: string }> {
-    if (serverId === 'exa') return { success: false, list: this.listPlugins(), error: 'Cannot remove built-in exa server' };
+  async removePlugin(serverId: string): Promise<{ success: boolean; error?: string }> {
+    if (serverId === 'exa') return { success: false, error: 'Cannot remove built-in exa server' };
     try {
       await this.removeMcpServer(serverId);
-      return { success: true, list: this.listPlugins() };
+      return { success: true };
     } catch (err) {
-      return { success: false, list: this.listPlugins(), error: err instanceof Error ? err.message : String(err) };
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
   }
 
@@ -99,9 +80,9 @@ export class ChatAgent extends AIChatAgent<Env> {
       if (pluginsAgentId) {
         try {
           const stub = this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)) as any;
-          const remotePlugins = await stub.listPlugins();
-          for (const plugin of remotePlugins) {
-            await this.addMcpServer(plugin.name, plugin.url);
+          const state: any = await stub.getMcpState();
+          for (const [, server] of Object.entries<{ name: string; server_url: string }>(state.servers)) {
+            await this.addMcpServer(server.name, server.server_url);
           }
         } catch (err) {
           console.error("[ChatAgent] Failed to fetch and connect remote plugins:", err);

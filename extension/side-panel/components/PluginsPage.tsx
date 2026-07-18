@@ -72,7 +72,7 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
     setLoading(true);
     setError('');
     try {
-      const data = await agent.stub.addPlugin(name.trim(), url.trim(), WORKER_URL) as any;
+      const data = await agent.call("addPlugin", [name.trim(), url.trim()]) as any;
       if (data.success) {
         if (data.requiresAuth && data.authUrl) {
           setAuthPending({ name: name.trim(), url: url.trim() });
@@ -95,7 +95,7 @@ export const PluginsPage: React.FC<PluginsPageProps> = ({ agentId, onClose }) =>
     const server = servers.find(s => s.id === serverId);
     if (server?.name === 'exa') return;
     try {
-      await agent.stub.removePlugin(serverId);
+      await agent.call("removePlugin", [serverId]);
     } catch (e) {
       console.error('[PluginsPage] removePlugin failed:', e);
     }
