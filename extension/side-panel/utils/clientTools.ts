@@ -62,8 +62,9 @@ export function createClientTools(context: ClientToolsContext): Record<string, A
             return {
               content: chunk || 'No content available at this offset',
               offset: offset,
+              length: chunk.length,
               totalLength: totalLength,
-              hasMore: offset + 2500 < totalLength
+              hasMore: offset + chunk.length < totalLength
             };
           }
           return 'No content available';
