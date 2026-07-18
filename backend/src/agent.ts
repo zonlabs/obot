@@ -1,20 +1,21 @@
-import { AIChatAgent, OnChatMessageOptions } from "@cloudflare/ai-chat";
+import { AIChatAgent, OnChatMessageOptions, createToolsFromClientSchemas } from "@cloudflare/ai-chat";
 import { createWorkersAI } from "workers-ai-provider";
 import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount } from "ai";
 import { Env } from "./db/schema";
-import { shoppingTools } from "./tools";
+
 
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa";
 
 function buildSystemPrompt(canvas: any[]): string {
+  const instructions = "You have access to getActiveTab (to get the URL and title of the user's currently active tab) and getTabContent (to read the visible text of a tab by URL). If the user asks about the page/tab they are currently on or looking at, use getActiveTab first to retrieve its URL, then use getTabContent with that URL to inspect the page.";
   if (!canvas || canvas.length === 0) {
-    return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Be direct. You have access to web search tools — use them to find up-to-date product info, prices, and reviews when needed.";
+    return `You are Obot, a concise assistant that helps the user with whatever they need. ${instructions}`;
   }
   const ctx = canvas.map((p: any, i: number) =>
-    `[Product ${i + 1}] ${p.name || "Unknown"}${p.store ? " at " + p.store : ""}${p.price ? " \u2014 " + (p.currency || "$") + p.price : ""}`
+    `[Item ${i + 1}] ${p.name || "Unknown"}${p.store ? " at " + p.store : ""}${p.price ? " — " + (p.currency || "$") + p.price : ""}${p.url ? " (url: " + p.url + ")" : ""}`
   ).join("\n");
-  return "You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Use the product data below to give specific, accurate answers. You also have access to web search tools — use them to find up-to-date product info, prices, and reviews when needed. Be direct.\n\n" + ctx;
+  return `You are Obot, a concise assistant that helps the user with whatever they need. Use the data below to give specific, accurate answers.\n\n${ctx}\n\n${instructions}`;
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
@@ -48,7 +49,7 @@ export class ChatAgent extends AIChatAgent<Env> {
           messages: await convertToModelMessages(this.messages),
           toolCalls: "before-last-2-messages",
         }),
-        tools: { ...shoppingTools, ...this.mcp.getAITools() },
+        tools: (_options?.clientTools?.length ? createToolsFromClientSchemas(_options.clientTools) : {}),
         maxOutputTokens: 1024,
         temperature: 0.3,
         stopWhen: isStepCount(10),

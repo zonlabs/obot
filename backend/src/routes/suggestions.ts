@@ -41,7 +41,6 @@ Example output:
 
   for (const model of MODELS) {
     try {
-      console.log('[suggestions] trying model:', model);
       const res: any = await c.env.AI.run(model, {
         messages: [
           { role: 'system', content: 'You are a helpful assistant that responds only with valid JSON.' },
@@ -55,7 +54,6 @@ Example output:
       let arr: unknown = res?.response;
       if (!Array.isArray(arr)) {
         const raw = String(res?.response ?? '').trim();
-        console.log('[suggestions] raw response:', raw.slice(0, 300));
         if (!rawSample) rawSample = raw.slice(0, 200);
 
         // Robust extraction: take from the first '[' to the last ']'.
@@ -78,15 +76,12 @@ Example output:
 
       if (valid.length > 0) {
         suggestions = valid;
-        console.log('[suggestions] SUCCESS with', model, '->', JSON.stringify(valid));
         break;
       } else {
         errors[model] = 'no valid string items in response';
-        console.log('[suggestions] no valid items from', model);
       }
     } catch (e: any) {
       errors[model] = e?.message ?? String(e);
-      console.log('[suggestions] error with', model, ':', e?.message ?? e);
       // Try the next model
     }
   }
@@ -98,7 +93,6 @@ Example output:
     rawSample,
     hasBinding: !!c.env.AI,
   };
-  console.log('[suggestions] debug:', JSON.stringify(debug));
 
   return c.json({ suggestions, debug }, 200);
 });

@@ -191,19 +191,4 @@ if (typeof document !== 'undefined' && document.body && document.createElement) 
   }
 }
 
-// ── Page text extraction for LLM suggestions ────────────────────────────────
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.type === 'pageText:get') {
-    try {
-      // Grab visible body text, strip excess whitespace, limit to 800 chars
-      const text = (document.body?.innerText || '')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .slice(0, 800);
-      sendResponse({ text });
-    } catch {
-      sendResponse({ text: '' });
-    }
-  }
-  return true; // Keep channel open for async
-});
+

@@ -9,34 +9,79 @@ import { renderMarkdown } from '../utils/markdown';
  * e.g. "tool_ZD5_lTox_web_search_exa" → "Web Search Exa"
  */
 function formatToolName(raw: string): string {
-  if (!raw || typeof raw !== 'string') return 'Tool Call';
-  const parts = raw.split('_');
+  if (!raw || typeof raw !== 'string') return 'Unknown Tool';
+  
+  // Strip common prefixes
+  let cleaned = raw;
+  if (cleaned.startsWith('tool_')) {
+    cleaned = cleaned.slice(5);
+  }
+  
+  // Clean up any remaining hash-like prefixes
+  const parts = cleaned.split('_');
   let start = 0;
-  // If name starts with 'tool', skip it plus any following short hash-like segments
-  if (parts[0] === 'tool') {
-    start = 1;
-    while (start < parts.length - 1) {
-      const seg = parts[start];
-      // Hash segments are short (≤5 chars) and contain at least one uppercase letter
-      if (seg.length <= 5 && /[A-Z]/.test(seg)) {
-        start++;
-      } else {
-        break;
-      }
+  while (start < parts.length - 1) {
+    const seg = parts[start];
+    // Hash segments are short (≤5 chars) and contain at least one uppercase letter
+    if (seg.length <= 5 && /[A-Z]/.test(seg)) {
+      start++;
+    } else {
+      break;
     }
   }
-  return parts
-    .slice(start)
-    .map(w => w.charAt(0).toUpperCase() + w.slice(1))
-    .join(' ');
+  cleaned = parts.slice(start).join('_');
+
+  // Handle camelCase
+  if (!cleaned.includes('_')) {
+    cleaned = cleaned.replace(/([A-Z])/g, ' $1').trim();
+  } else {
+    // Handle snake_case
+    cleaned = cleaned
+      .split('_')
+      .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ');
+  }
+
+  // Capitalize the very first letter just in case
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
 }
 
 interface ToolCallAccordionProps {
   part: any;
+  allParts?: any[];
+  allMessages?: any[];
 }
 
-const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
+const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part, allParts, allMessages }) => {
   const [isOpen, setIsOpen] = useState(false);
+
+  const getToolNameFromPart = (p: any) => {
+    if (!p) return '';
+    if (p.toolName) return p.toolName;
+    if (p.type && p.type.startsWith('tool-')) return p.type.slice(5);
+    return '';
+  };
+
+  let toolName = getToolNameFromPart(part);
+  
+  if (!toolName && allParts) {
+    const found = allParts.find((p: any) => p.toolCallId === part.toolCallId && getToolNameFromPart(p));
+    if (found) {
+      toolName = getToolNameFromPart(found);
+    }
+  }
+
+  if (!toolName && allMessages) {
+    for (const m of allMessages) {
+      if (m.parts) {
+        const found = m.parts.find((p: any) => p.toolCallId === part.toolCallId && getToolNameFromPart(p));
+        if (found) {
+          toolName = getToolNameFromPart(found);
+          break;
+        }
+      }
+    }
+  }
 
   let statusText = 'Completed';
   let statusClass = 'completed';
@@ -72,48 +117,6 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
       );
     }
 
-    if (part.toolName === 'findDeals' && part.output) {
-      const d = part.output as any;
-      return (
-        <div
-          className="deal-card"
-          onClick={() => {
-            const q = `${d.deal} ${d.store} ${d.category}`;
-            window.open(`https://www.google.com/search?q=${encodeURIComponent(q)}`, '_blank');
-          }}
-        >
-          <div className="deal-badge">{d.deal}</div>
-          <div className="deal-store">{d.store}</div>
-          <div className="deal-category">
-            {d.category}{d.maxPrice !== 'No limit' ? ` · up to $${d.maxPrice}` : ''}
-          </div>
-          <div className="deal-details">{d.details}</div>
-        </div>
-      );
-    }
-
-    if (part.toolName === 'getProductDetails' && part.output) {
-      const p = part.output as any;
-      return (
-        <div className="product-detail-card">
-          <div className="pd-name">{p.name}</div>
-          <div className="pd-meta">{p.store} · {p.price} · {p.rating}</div>
-          <div className="pd-desc">{p.description}</div>
-        </div>
-      );
-    }
-
-    if (part.toolName === 'compareProducts' && part.output) {
-      const c = part.output as any;
-      return (
-        <div className="compare-card">
-          <div className="compare-header">Comparison</div>
-          <div className="compare-products">{c.products?.join(' vs ')}</div>
-          <div className="compare-text">{c.comparison}</div>
-        </div>
-      );
-    }
-
     return (
       <pre className="tool-call-code">
         {resultString}
@@ -129,7 +132,7 @@ const ToolCallAccordion: React.FC<ToolCallAccordionProps> = ({ part }) => {
             <Wrench size={13} />
           </div>
           <div className="tool-call-title-container">
-            <span className="tool-call-name">{formatToolName(part.toolName)}</span>
+            <span className="tool-call-name">{formatToolName(toolName)}</span>
             <span className={`tool-call-status ${statusClass}`}>{statusText}</span>
           </div>
         </div>
@@ -164,6 +167,7 @@ interface MessageItemProps {
   onRegenerate: (messageId: string) => void;
   onEditMessage: (messageId: string, newText: string) => void;
   isLatestAssistant?: boolean;
+  allMessages?: any[];
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({
@@ -174,6 +178,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   onRegenerate,
   onEditMessage,
   isLatestAssistant,
+  allMessages,
  }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState('');
@@ -346,7 +351,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                     Action Required
                   </span>
                   <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
-                    Tool: {part.toolName}
+                    Tool: {formatToolName(part.toolName || (part.type?.startsWith('tool-') ? part.type.slice(5) : ''))}
                   </span>
                 </div>
               </div>
@@ -431,7 +436,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
 
         /* ── tool call accordion ── */
         if (part.toolCallId && part.state !== 'approval-requested') {
-          return <ToolCallAccordion key={part.toolCallId} part={part} />;
+          return <ToolCallAccordion key={part.toolCallId} part={part} allParts={msg.parts} allMessages={allMessages} />;
         }
 
         return null;
