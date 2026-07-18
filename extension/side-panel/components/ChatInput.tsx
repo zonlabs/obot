@@ -83,10 +83,11 @@ interface ModelEntry {
   tier: ModelTier;
 }
 
-interface Product {
+interface Tab {
   url: string;
-  name?: string;
-  store?: string;
+  title?: string;
+  active?: boolean;
+  tabId?: number;
 }
 
 interface ChatInputProps {
@@ -102,9 +103,8 @@ interface ChatInputProps {
   showPopup: boolean;
   setShowPopup: (v: boolean) => void;
   attachPopupRef: RefObject<HTMLDivElement | null>;
-  products: Product[];
+  tabs: Tab[];
   selectedUrls: string[];
-  selectedProducts: Product[];
   activeTabUrl: string;
   onToggleUrl: (url: string) => void;
 
@@ -139,9 +139,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   showPopup,
   setShowPopup,
   attachPopupRef,
-  products,
+  tabs,
   selectedUrls,
-  selectedProducts,
   activeTabUrl,
   onToggleUrl,
   showSelected,
@@ -157,7 +156,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({
   onSelectModel,
   onStop,
 }) => {
-  const selectedTabs = products.filter((p: any) => selectedUrls.includes(p.url));
+  const selectedTabs = tabs.filter((t: any) => selectedUrls.includes(t.url));
 
   return (
     <div id="input-outer-container" className={`${showSelected && selectedUrls.length > 0 ? 'expanded' : ''} ${isStreaming ? 'streaming' : ''}`}>
@@ -165,8 +164,8 @@ export const ChatInput: React.FC<ChatInputProps> = ({
       {selectedUrls.length > 0 && (
         <div className="input-header-row">
           <div className="input-header-left">
-            {!showSelected && selectedTabs.slice(0, 3).map((p: any) => (
-              <Favicon key={p.url} url={p.url} size={16} className="input-header-favicon" />
+            {!showSelected && selectedTabs.slice(0, 3).map((t: any) => (
+              <Favicon key={t.url} url={t.url} size={16} className="input-header-favicon" />
             ))}
             <span className="input-header-text">
               Sharing {selectedTabs.length} tab{selectedTabs.length > 1 ? 's' : ''}
@@ -188,17 +187,17 @@ export const ChatInput: React.FC<ChatInputProps> = ({
           {showSelected && selectedUrls.length > 0 && (
             <>
               <div id="selected-detail">
-                {selectedTabs.map((p: any) => (
-                  <div key={p.url} className="detail-row">
-                    <Favicon url={p.url} size={18} className="detail-row-favicon" />
-                    <span className="detail-row-title">{p.title || p.url}</span>
-                    {p.active && (
+                {selectedTabs.map((t: any) => (
+                  <div key={t.url} className="detail-row">
+                    <Favicon url={t.url} size={18} className="detail-row-favicon" />
+                    <span className="detail-row-title">{t.title || t.url}</span>
+                    {t.active && (
                       <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
                     )}
                     <button
                       className="detail-row-remove"
                       title="Remove tab"
-                      onClick={() => onToggleUrl(p.url)}
+                      onClick={() => onToggleUrl(t.url)}
                     >
                       <X size={14} />
                     </button>
@@ -220,23 +219,23 @@ export const ChatInput: React.FC<ChatInputProps> = ({
             <div style={{ padding: '6px 12px', fontSize: '10px', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>
               Open Tabs
             </div>
-            {products.map((p: any) => {
-              const isSelected = selectedUrls.includes(p.url);
+            {tabs.map((t: any) => {
+              const isSelected = selectedUrls.includes(t.url);
               return (
                 <div
-                  key={p.url}
+                  key={t.url}
                   className={`popup-item ${isSelected ? 'active' : ''}`}
-                  onClick={() => onToggleUrl(p.url)}
+                  onClick={() => onToggleUrl(t.url)}
                 >
-                  <Favicon url={p.url} size={20} className="popup-item-icon" />
+                  <Favicon url={t.url} size={20} className="popup-item-icon" />
                   <div className="popup-item-info">
                     <div className="popup-item-name">
-                      {p.title || p.url}
-                      {p.active && (
+                      {t.title || t.url}
+                      {t.active && (
                         <span style={{ color: 'var(--text-muted)', fontWeight: 'normal' }}> • Current tab</span>
                       )}
                     </div>
-                    <div className="popup-item-store">{p.product?.store || safeUrl(p.url)}</div>
+                    <div className="popup-item-store">{safeUrl(t.url)}</div>
                   </div>
                   {isSelected && <CircleCheckIcon />}
                 </div>

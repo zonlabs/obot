@@ -7,15 +7,13 @@ import { Env } from "./db/schema";
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa";
 
-function buildSystemPrompt(canvas: any[]): string {
-  const instructions = "You have access to getActiveTab (to get the URL and title of the user's currently active tab) and getTabContent (to read the visible text of a tab by URL). If the user asks about the page/tab they are currently on or looking at, use getActiveTab first to retrieve its URL, then use getTabContent with that URL to inspect the page.";
-  if (!canvas || canvas.length === 0) {
-    return `You are Obot, a concise assistant that helps the user with whatever they need. ${instructions}`;
-  }
-  const ctx = canvas.map((p: any, i: number) =>
-    `[Item ${i + 1}] ${p.name || "Unknown"}${p.store ? " at " + p.store : ""}${p.price ? " — " + (p.currency || "$") + p.price : ""}${p.url ? " (url: " + p.url + ")" : ""}`
-  ).join("\n");
-  return `You are Obot, a concise assistant that helps the user with whatever they need. Use the data below to give specific, accurate answers.\n\n${ctx}\n\n${instructions}`;
+function buildSystemPrompt(): string {
+  return "You are Obot, a concise assistant that helps the user with whatever they need. " +
+         "You have access to the following client-side tools:\n" +
+         "- getActiveTab: gets the URL and title of the user's currently active tab.\n" +
+         "- getTabContent: reads the visible text content from any tab by URL.\n\n" +
+         "Guidelines:\n" +
+         "1. If the user asks about the page/tab they are currently on or looking at, use getActiveTab first to discover its URL, then use getTabContent with that URL to read its content.";
 }
 
 export class ChatAgent extends AIChatAgent<Env> {
@@ -29,7 +27,6 @@ export class ChatAgent extends AIChatAgent<Env> {
   ) {
     const workersai = createWorkersAI({ binding: this.env.AI });
     const modelName = (_options?.body?.model as string) || DEFAULT_MODEL;
-    const canvas = _options?.body?.canvas as any[] | undefined;
 
     const isFirstTurn = this.messages.length <= 2;
     const userMessage = isFirstTurn
@@ -44,7 +41,7 @@ export class ChatAgent extends AIChatAgent<Env> {
     try {
       const result = streamText({
         model: workersai(modelName),
-        system: buildSystemPrompt(canvas || []),
+        system: buildSystemPrompt(),
         messages: pruneMessages({
           messages: await convertToModelMessages(this.messages),
           toolCalls: "before-last-2-messages",

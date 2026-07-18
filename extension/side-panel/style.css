@@ -96,12 +96,16 @@ body {
 }
 
 .brand {
-  font-size: 15px;
-  font-weight: 500;
-  color: var(--text-primary);
+  font-size: 16px;
+  font-weight: 600;
+  background: linear-gradient(to right, #ea4335 0%, #ff8a80 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  display: inline-block;
 }
 
 .header-icon-btn {
@@ -590,7 +594,7 @@ body {
   color: var(--text-primary);
   min-height: 24px;
   max-height: 120px;
-  padding: 0;
+  padding: 8px 4px;
 }
 
 #input::placeholder {
@@ -1027,6 +1031,7 @@ details pre {
   line-height: 1.2;
   background: linear-gradient(to right, #ea4335 0%, #ff8a80 100%);
   -webkit-background-clip: text;
+  background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 

@@ -9,6 +9,7 @@ import { MessageItem } from './components/MessageItem';
 import { ChatInput } from './components/ChatInput';
 import { LoadingIndicator } from './components/LoadingIndicator';
 import { useThreads } from './utils/useThreads';
+import { clientTools } from './utils/clientTools';
 
 // ── Constants ──
 const WORKER_URL = 'http://127.0.0.1:8787';
@@ -71,9 +72,8 @@ interface ChatViewProps {
   threads: { id: string; title: string; createdAt: number }[];
   setActiveThreadId: (id: string) => void;
   model: string;
-  selectedProducts: any[];
   user: any;
-  products: any[];
+  tabs: any[];
   selectedUrls: string[];
   activeTabUrl: string;
   activeTabTitle: string;
@@ -98,7 +98,6 @@ interface ChatViewProps {
   selectedModelIcon: string;
   onToggleUrl: (url: string) => void;
   onSelectModel: (val: string) => void;
-  onRemoveProduct: (url: string) => void;
   onSignIn: () => void;
   onSignOut: () => void;
 }
@@ -114,9 +113,8 @@ function ChatView(props: ChatViewProps) {
     threads,
     setActiveThreadId,
     model,
-    selectedProducts,
     user,
-    products,
+    tabs,
     selectedUrls,
     activeTabUrl,
     activeTabTitle,
@@ -141,7 +139,6 @@ function ChatView(props: ChatViewProps) {
     selectedModelIcon,
     onToggleUrl,
     onSelectModel,
-    onRemoveProduct,
     onSignIn,
     onSignOut,
   } = props;
@@ -156,99 +153,9 @@ function ChatView(props: ChatViewProps) {
 
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages } = useAgentChat({
     agent,
-    body: { model, canvas: selectedProducts },
+    body: { model },
     experimental_automaticToolResolution: true,
-    tools: {
-      getTabContent: {
-        description: 'Get the visible text content of a selected tab by its URL. Use this to read product details, reviews, or any page info from tabs the user has shared.',
-        parameters: {
-          type: 'object',
-          properties: {
-            url: { type: 'string', description: 'The full URL of the tab to read' },
-          },
-          required: ['url'],
-        },
-        execute: async (input: unknown) => {
-          console.log('[getTabContent] execute called with input:', input);
-          const { url } = input as { url: string };
-          console.log('[getTabContent] url:', url);
-          
-          const cleanUrl = (u: string) => {
-            try {
-              const parsed = new URL(u);
-              let pathname = parsed.pathname;
-              if (pathname.endsWith('/')) {
-                pathname = pathname.slice(0, -1);
-              }
-              return `${parsed.protocol}//${parsed.host}${pathname}`;
-            } catch {
-              return u.toLowerCase().replace(/\/$/, '');
-            }
-          };
-
-          try {
-            const tabs = await chrome.tabs.query({});
-            console.log('[getTabContent] tabs found:', tabs.length, 'looking for:', url);
-            
-            const targetClean = cleanUrl(url);
-            let tab = tabs.find(t => t.url && cleanUrl(t.url) === targetClean);
-            if (!tab && url) {
-              tab = tabs.find(t => t.url && (t.url.includes(url) || url.includes(t.url)));
-            }
-
-            console.log('[getTabContent] matched tab:', tab?.id, tab?.url);
-            if (!tab?.id) {
-              return 'Tab not found';
-            }
-
-            const results = await chrome.scripting.executeScript({
-              target: { tabId: tab.id },
-              func: () => {
-                return (document.body?.innerText || '')
-                  .replace(/\s+/g, ' ')
-                  .trim()
-                  .slice(0, 4000);
-              }
-            });
-
-            if (results && results[0]) {
-              const text = results[0].result;
-              console.log('[getTabContent] executeScript result len:', text?.length || 0);
-              return text || 'No content available';
-            }
-            return 'No content available';
-          } catch (e) {
-            console.error('[getTabContent] Error:', e);
-            return `Error: ${e instanceof Error ? e.message : String(e)}`;
-          }
-        },
-      },
-      getActiveTab: {
-        description: "Get the URL and title of the user's currently active tab.",
-        parameters: {
-          type: 'object',
-          properties: {},
-        },
-        execute: async () => {
-          console.log('[getActiveTab] execute called');
-          try {
-            const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
-            console.log('[getActiveTab] active tabs found:', tabs.length);
-            if (tabs[0]?.url) {
-              console.log('[getActiveTab] active tab:', tabs[0].url, tabs[0].title);
-              return {
-                url: tabs[0].url,
-                title: tabs[0].title || '',
-              };
-            }
-            return 'No active tab found';
-          } catch (e) {
-            console.error('[getActiveTab] Error:', e);
-            return `Error: ${e instanceof Error ? e.message : String(e)}`;
-          }
-        },
-      },
-    },
+    tools: clientTools,
   });
 
   const popoutMode = new URLSearchParams(window.location.search).has('popout');
@@ -398,16 +305,16 @@ function ChatView(props: ChatViewProps) {
           <span
             className="brand"
             title={activeThreadTitle || 'Obot'}
-            style={{ maxWidth: '140px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
           >
             {activeThreadTitle || 'Obot'}
           </span>
+        </div>
+
+        <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button className="header-icon-btn" title="New Chat" onClick={handleNewChat}>
             <SquarePen size={18} />
           </button>
-        </div>
-
-        <div className="header-actions">
           {/* Auth button */}
           {user ? (
             <button
@@ -499,9 +406,8 @@ function ChatView(props: ChatViewProps) {
         setShowSelected={setShowSelected}
         selectedPanelRef={selectedPanelRef}
         attachPopupRef={attachPopupRef}
-        products={products}
+        tabs={tabs}
         selectedUrls={selectedUrls}
-        selectedProducts={selectedProducts}
         activeTabUrl={activeTabUrl}
         onToggleUrl={onToggleUrl}
         showModelPopup={showModelPopup}
@@ -539,7 +445,6 @@ const ChatSkeleton = () => {
         <div className="skeleton-glow" style={{ width: '80px', height: '14px', borderRadius: '7px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
           <div className="skeleton-glow" style={{ width: '80px', height: '14px', borderRadius: '7px' }} />
-          <X size={16} style={{ color: 'var(--text-muted, #8e8e8e)', opacity: 0.6 }} />
         </div>
       </div>
       
@@ -614,11 +519,6 @@ export default function App() {
   } = useThreads();
 
   // ── Derived ──
-  const selectedProducts = useMemo(
-    () => tabs.filter(t => selectedUrls.includes(t.url)).map(t => t.product).filter(Boolean),
-    [tabs, selectedUrls],
-  );
-
   const selectedModelLabel = useMemo(() => {
     const found = MODELS_DATA.find(m => m.value === model);
     return found ? found.label : model.split('/').pop()!;
@@ -765,24 +665,14 @@ export default function App() {
   const handleSignIn  = () => chrome.runtime.sendMessage({ type: 'auth:signin' },  (r) => { if (r?.user) setUser(r.user); });
   const handleSignOut = () => chrome.runtime.sendMessage({ type: 'auth:signout' }, () => setUser(null));
 
-  const handleRemoveProduct = (url: string) => {
-    chrome.runtime.sendMessage({ type: 'canvas:remove', url }, () => {
-      chrome.runtime.sendMessage({ type: 'canvas:get' }, (response) => {
-        const p = response?.tabs || [];
-        setTabs(p);
-        setSelectedUrls(prev => prev.filter(u => u !== url && p.some((x: any) => x.url === u)));
-      });
-    });
-  };
-
-  const toggleUrl = (url: string) =>
-    setSelectedUrls(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
-
   const handleSelectModel = (val: string) => {
     setModel(val);
     localStorage.setItem('shopmate_model', val);
     setShowModelPopup(false);
   };
+
+  const toggleUrl = (url: string) =>
+    setSelectedUrls(prev => prev.includes(url) ? prev.filter(u => u !== url) : [...prev, url]);
 
   // ── Render ──
   return (
@@ -798,9 +688,8 @@ export default function App() {
         threads={threads}
         setActiveThreadId={setActiveThreadId}
         model={model}
-        selectedProducts={selectedProducts}
         user={user}
-        products={tabs}
+        tabs={tabs}
         selectedUrls={selectedUrls}
         activeTabUrl={activeTabUrl}
         activeTabTitle={activeTabTitle}
@@ -825,7 +714,6 @@ export default function App() {
         selectedModelIcon={selectedModelIcon}
         onToggleUrl={toggleUrl}
         onSelectModel={handleSelectModel}
-        onRemoveProduct={handleRemoveProduct}
         onSignIn={handleSignIn}
         onSignOut={handleSignOut}
       />
