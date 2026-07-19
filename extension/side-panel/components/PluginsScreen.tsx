@@ -259,7 +259,7 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ agentId, userId, o
               <div className="section-title">Connected Plugins</div>
               <div className="plugins-list">
                 {servers.map((s) => (
-                  <div key={s.id} className="plugin-card">
+                  <div key={s.id} className="plugin-card" title={s.url}>
                     <div className="plugin-header">
                       <div className="plugin-name-row">
                         {s.state === 'ready' ? (
@@ -294,7 +294,6 @@ export const PluginsScreen: React.FC<PluginsScreenProps> = ({ agentId, userId, o
                         <span className="plugin-badge">System</span>
                       )}
                     </div>
-                    <div className="plugin-url">{s.url}</div>
                     <div className="plugin-status-text">Status: {s.state}</div>
                   </div>
                 ))}

@@ -216,7 +216,7 @@ function ChatView(props: ChatViewProps) {
       sendMessage({ text: pendingEdit.text });
       setPendingEdit(null);
     }
-  }, [messages, pendingEdit, sendMessage]);
+  }, [pendingEdit, sendMessage]);
 
   // ── Agent message listener (title broadcasts) ──
   useEffect(() => {
@@ -291,29 +291,28 @@ function ChatView(props: ChatViewProps) {
   }, [setInputValue, inputRef]);
 
   const handleEditMessage = useCallback((messageId: string, newText: string) => {
-    const idx = messages.findIndex(m => m.id === messageId);
-    if (idx === -1) return;
-    
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === messageId);
+      if (idx === -1) return prev;
+      return prev.slice(0, idx);
+    });
     setPendingEdit({ text: newText });
-    setMessages(messages.slice(0, idx));
-  }, [messages, setMessages]);
+  }, [setMessages]);
 
   const handleRegenerateMessage = useCallback((messageId: string) => {
-    const idx = messages.findIndex(m => m.id === messageId);
-    if (idx === -1) return;
-    
-    const userMsgIdx = idx - 1;
-    if (userMsgIdx < 0) return;
-    
-    const userMsg = messages[userMsgIdx];
-    if (userMsg.role !== 'user') return;
-    
-    const userText = ((userMsg.parts.find((p: any) => p.type === 'text') as { text?: string } | undefined)?.text) || '';
-    if (!userText) return;
-    
-    setPendingEdit({ text: userText });
-    setMessages(messages.slice(0, userMsgIdx));
-  }, [messages, setMessages]);
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.id === messageId);
+      if (idx === -1) return prev;
+      const userMsgIdx = idx - 1;
+      if (userMsgIdx < 0) return prev;
+      const userMsg = prev[userMsgIdx];
+      if (userMsg.role !== 'user') return prev;
+      const userText = ((userMsg.parts.find((p: any) => p.type === 'text') as { text?: string } | undefined)?.text) || '';
+      if (!userText) return prev;
+      setPendingEdit({ text: userText });
+      return prev.slice(0, userMsgIdx);
+    });
+  }, [setMessages]);
 
   // ── Scroll to bottom on new messages ──
   const scrollToBottom = useCallback(() => {

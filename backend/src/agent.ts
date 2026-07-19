@@ -1,8 +1,9 @@
 import { AIChatAgent, OnChatMessageOptions, createToolsFromClientSchemas } from "@cloudflare/ai-chat";
 import { callable } from "agents";
 import { createWorkersAI } from "workers-ai-provider";
-import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount, UIMessage } from "ai";
+import { streamText, convertToModelMessages, pruneMessages, createUIMessageStreamResponse, toUIMessageStream, GenerateTextOnEndCallback, isStepCount, UIMessage, ToolSet } from "ai";
 import { Env } from "./db/schema";
+import { McpProxy } from "./mcp-proxy";
 
 const DEFAULT_MODEL = "@cf/meta/llama-4-scout-17b-16e-instruct";
 const EXA_MCP_URL = "https://mcp.exa.ai/mcp?tools=web_search_exa,web_search_advanced_exa,web_fetch_exa";
@@ -17,7 +18,6 @@ export class ChatAgent extends AIChatAgent<Env> {
   private _userId: string | null = null;
 
   async onStart() {
-    // Register the built-in exa server only on the stable plugins DO instance.
     if (this.name?.includes("plugins")) {
       await this.addMcpServer("exa", EXA_MCP_URL, { id: "ExavMbPd" });
     }
@@ -46,14 +46,15 @@ export class ChatAgent extends AIChatAgent<Env> {
     success: boolean;
     requiresAuth: boolean;
     authUrl?: string;
+    serverId?: string;
     error?: string;
   }> {
     try {
       const result = await this.addMcpServer(name, url);
       if (result.state === 'authenticating') {
-        return { success: true, requiresAuth: true, authUrl: result.authUrl };
+        return { success: true, requiresAuth: true, authUrl: result.authUrl, serverId: result.id };
       }
-      return { success: true, requiresAuth: false };
+      return { success: true, requiresAuth: false, serverId: result.id };
     } catch (err) {
       return { success: false, requiresAuth: false, error: err instanceof Error ? err.message : String(err) };
     }
@@ -68,6 +69,45 @@ export class ChatAgent extends AIChatAgent<Env> {
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) };
     }
+  }
+
+  /**
+   * Return MCP tool descriptors for all connected servers on this DO.
+   * Called by McpProxy in child chat DOs via DO-to-DO RPC.
+   * NOT @callable() — only for child DO communication, not browser access.
+   */
+  async listMcpToolDescriptors(timeoutMs = 10_000, serverFilter?: string[]): Promise<unknown[]> {
+    console.log(`[listMcpToolDescriptors] name=${this.name}, timeout=${timeoutMs}ms`);
+
+    try {
+      await (this.mcp as any).restoreConnectionsFromStorage(this.name);
+    } catch (err) {
+      console.warn(`[listMcpToolDescriptors] restoreConnectionsFromStorage error:`, err);
+    }
+
+    const servers = this.getMcpServers();
+    const serverStates = Object.entries(servers.servers).map(([id, s]) => `${id}=${(s as any).state}`).join(', ');
+    console.log(`[listMcpToolDescriptors] servers: ${serverStates}`);
+
+    await this.mcp.waitForConnections({ timeout: timeoutMs });
+
+    const filter = serverFilter && serverFilter.length > 0 ? { serverId: serverFilter } : undefined;
+    const allTools = this.mcp.listTools(filter);
+    console.log(`[listMcpToolDescriptors] returning ${allTools.length} tools${filter ? ` (filtered to ${serverFilter!.length} servers)` : ''}`);
+    return allTools;
+  }
+
+  /**
+   * Execute an MCP tool on a connected server.
+   * Called by McpProxy in child chat DOs via DO-to-DO RPC.
+   * NOT @callable() — only for child DO communication.
+   */
+  async callMcpTool(
+    serverId: string,
+    name: string,
+    args: Record<string, unknown>
+  ): Promise<unknown> {
+    return await this.mcp.callTool({ arguments: args, name, serverId });
   }
 
   async onChatMessage(
@@ -93,23 +133,19 @@ export class ChatAgent extends AIChatAgent<Env> {
       const clientTools = _options?.clientTools?.length ? createToolsFromClientSchemas(_options.clientTools) : {};
 
       const pluginsAgentId = _options?.body?.pluginsAgentId as string | undefined;
+      const enabledPlugins = _options?.body?.enabledPlugins as string[] | undefined;
 
+      let mcpTools: ToolSet = {};
       if (pluginsAgentId) {
         try {
-          const stub = this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)) as any;
-          const state: any = await stub.listPlugins();
-          const enabledPlugins = _options?.body?.enabledPlugins as string[] | undefined;
-          for (const [id, server] of Object.entries<{ name: string; server_url: string }>(state.servers)) {
-            if (!enabledPlugins || enabledPlugins.includes(id)) {
-              await this.addMcpServer(server.name, server.server_url);
-            }
-          }
+          const sharedMcp = new McpProxy(() =>
+            Promise.resolve(this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)))
+          );
+          mcpTools = await sharedMcp.getAITools(5_000, enabledPlugins);
         } catch (err) {
-          console.error("[ChatAgent] Failed to fetch and connect remote plugins:", err);
+          console.error("[ChatAgent] Failed to get tools from plugins DO:", err);
         }
       }
-
-      const mcpTools = await this.mcp.getAITools();
 
       const result = streamText({
         model: workersai(modelName),

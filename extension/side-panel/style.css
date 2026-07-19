@@ -2122,18 +2122,6 @@ details pre {
   text-overflow: ellipsis;
 }
 
-.plugin-card .plugin-url {
-  font-size: 11px;
-  color: var(--text-muted);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  min-width: 0;
-  max-width: 50%;
-  direction: rtl;
-  text-align: right;
-}
-
 .plugin-card .plugin-status-text {
   display: none;
 }
