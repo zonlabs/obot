@@ -14,7 +14,8 @@ interface ProductData {
 
 function extractSchemaOrg(): Partial<ProductData> | null {
   const scripts = document.querySelectorAll('script[type="application/ld+json"]');
-  for (const script of scripts) {
+  for (let i = 0; i < scripts.length; i++) {
+    const script = scripts[i];
     try {
       const data = JSON.parse(script.textContent || '');
       const items = data['@graph'] || (Array.isArray(data) ? data : [data]);
@@ -147,15 +148,13 @@ function buildProductData(): ProductData | null {
   return merged;
 }
 
-console.log('[Obot] Content script loaded on:', window.location.href);
-
 if (typeof document !== 'undefined' && document.body && document.createElement) {
   const tempEl = document.createElement('div');
   if (tempEl && tempEl.style) {
     const isProduct = isProductPage();
-    console.log('[Obot] isProductPage:', isProduct);
 
     if (isProduct) {
+      console.log('[Obot] isProductPage: true');
       console.log('[Obot] Running product extractors...');
       const schema = extractSchemaOrg();
       console.log('[Obot] Schema.org result:', schema);

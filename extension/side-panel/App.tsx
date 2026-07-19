@@ -328,13 +328,15 @@ function ChatView(props: ChatViewProps) {
       {/* ── Header ── */}
       <header id="header">
         <div className="header-title-container" style={{ flex: 1, minWidth: 0 }}>
-          <span
-            className="brand"
-            title={activeThreadTitle || 'Obot'}
-            style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-          >
-            {activeThreadTitle || 'Obot'}
-          </span>
+          {activeThreadTitle && (
+            <span
+              className="brand"
+              title={activeThreadTitle}
+              style={{ maxWidth: '280px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+            >
+              {activeThreadTitle}
+            </span>
+          )}
         </div>
 
         <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
