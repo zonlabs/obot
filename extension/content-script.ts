@@ -147,18 +147,6 @@ function buildProductData(): ProductData | null {
   return merged;
 }
 
-function injectDebugBadge(text: string): void {
-  if (typeof document === 'undefined' || !document.body || !document.createElement) return;
-  const existing = document.getElementById('shop-mate-debug');
-  if (existing) { existing.textContent = text; return; }
-  const el = document.createElement('div');
-  if (!el || !el.style) return;
-  el.id = 'shop-mate-debug';
-  el.style.cssText = 'position:fixed;bottom:4px;right:4px;z-index:99999;background:#E53935;color:#fff;font:11px sans-serif;padding:3px 8px;border-radius:4px;pointer-events:none;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
-  el.textContent = text;
-  document.body.appendChild(el);
-}
-
 console.log('[Obot] Content script loaded on:', window.location.href);
 
 if (typeof document !== 'undefined' && document.body && document.createElement) {
@@ -166,7 +154,6 @@ if (typeof document !== 'undefined' && document.body && document.createElement) 
   if (tempEl && tempEl.style) {
     const isProduct = isProductPage();
     console.log('[Obot] isProductPage:', isProduct);
-    injectDebugBadge(`Obot: ${isProduct ? 'product page' : 'not a product page'}`);
 
     if (isProduct) {
       console.log('[Obot] Running product extractors...');
@@ -179,7 +166,6 @@ if (typeof document !== 'undefined' && document.body && document.createElement) 
 
       const product = buildProductData();
       console.log('[Obot] Built product data:', product);
-      injectDebugBadge(`Obot: ${product?.name?.slice(0, 40) || 'no product'} — ${product?.currency || ''}${product?.price || 0}`);
 
       if (product && product.price > 0) {
         console.log('[Obot] Sending product:detected message');

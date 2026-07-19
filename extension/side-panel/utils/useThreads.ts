@@ -6,9 +6,7 @@ export interface ChatThread {
   createdAt: number;
 }
 
-const WORKER_URL = 'http://127.0.0.1:8787';
-const LS_THREADS = 'shopmate_chats';
-const LS_ACTIVE  = 'shopmate_active_thread_id';
+import { WORKER_URL, LS_THREADS, LS_ACTIVE } from '../../shared/constants';
 
 function readLocalThreads(): ChatThread[] {
   try {

@@ -1,10 +1,4 @@
-export interface Env {
-  DB: D1Database;
-  CACHE: KVNamespace;
-  AI: Ai;
-  ChatAgent: DurableObjectNamespace;
-  JWT_SECRET: string; // set via: wrangler secret put JWT_SECRET
-}
+export interface Env extends __BaseEnv_Env {}
 
 export async function insertPriceHistory(
   db: D1Database,

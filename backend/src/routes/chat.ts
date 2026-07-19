@@ -9,7 +9,7 @@ function buildSystemPrompt(canvas: any[]): string {
   const ctx = canvas.map((p: any, i: number) =>
     `[Product ${i + 1}] ${p.name} — ${p.currency || '$'}${p.price} at ${p.store} — Rating: ${p.rating ?? 'N/A'} — ${p.description?.slice(0, 200) ?? ''}`
   ).join('\n');
-  return `You are a concise shopping assistant. Help the user compare products, find deals, and make purchase decisions. Use the product data below to give specific, accurate answers. Be direct.\n\n${ctx}`;
+  return `You are Obot, a helpful AI assistant. Answer user queries, compare items, and help them make decisions. Use the context data below to give specific, accurate answers. Be direct.\n\n${ctx}`;
 }
 
 const app = new Hono<{ Bindings: Env }>();

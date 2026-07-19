@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlignLeft, Trash2, LogOut, LogIn, Puzzle } from 'lucide-react';
+import { LS_ACTIVE } from '../../shared/constants';
 
 interface ChatThread {
   id: string;
@@ -90,7 +91,7 @@ export const HistoryPopup: React.FC<HistoryPopupProps> = ({
                 className={`history-popup-item ${isCurrent ? 'active' : ''}`}
                 onClick={() => {
                   setActiveThreadId(t.id);
-                  localStorage.setItem('shopmate_active_thread_id', t.id);
+                  localStorage.setItem(LS_ACTIVE, t.id);
                   setShowHistoryPopup(false);
                 }}
               >

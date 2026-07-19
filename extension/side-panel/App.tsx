@@ -13,9 +13,15 @@ import { createClientTools } from './utils/clientTools';
 import { PluginsScreen } from './components/PluginsScreen';
 import { ChatViewProps } from '../shared/types';
 
-// ── Constants ──
-const WORKER_URL = 'http://127.0.0.1:8787';
-const PLUGINS_AGENT_ID_STORAGE_KEY = 'obot_plugins_agent_id';
+import { 
+  WORKER_URL, 
+  PLUGINS_AGENT_ID_STORAGE_KEY,
+  VALID_MODELS,
+  DEFAULT_MODEL,
+  MODELS_DATA,
+  LS_DISABLED_PLUGINS,
+  LS_MODEL
+} from '../shared/constants';
 
 function sanitizeAgentIdPart(value: string): string {
   return value.replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -47,25 +53,6 @@ function getPluginsAgentId(user: any): string {
   return getInstallPluginAgentId();
 }
 
-// Models ordered from basic → advanced
-const VALID_MODELS = [
-  // ── Basic (1B-3B, fast & cheap) ──
-  '@cf/meta/llama-3.2-1b-instruct',
-  '@cf/google/gemma-2b-it-lora',
-  '@cf/meta/llama-3.2-3b-instruct',
-  // ── Intermediate (3B-8B) ──
-  '@cf/qwen/qwen3-30b-a3b-fp8',
-  '@cf/zai-org/glm-4.7-flash',
-  '@cf/meta/llama-3.1-8b-instruct-fp8-fast',
-  // ── Advanced (17B-120B) ──
-  '@cf/meta/llama-4-scout-17b-16e-instruct',
-  '@cf/google/gemma-4-26b-a4b-it',
-  '@cf/zai-org/glm-5.2',
-  '@cf/moonshotai/kimi-k2.6',
-  '@cf/openai/gpt-oss-120b',
-];
-const DEFAULT_MODEL = '@cf/meta/llama-3.2-3b-instruct';
-
 type ModelTier = 'basic' | 'intermediate' | 'advanced';
 
 interface ModelEntry {
@@ -75,23 +62,6 @@ interface ModelEntry {
   icon: string;
   tier: ModelTier;
 }
-
-const MODELS_DATA: ModelEntry[] = [
-  // ── Basic ──
-  { value: '@cf/meta/llama-3.2-1b-instruct',       label: 'Llama 3.2 1B',   desc: 'Meta Tiny Text Instruct (fastest, cheapest)',   icon: 'meta.svg',   tier: 'basic' },
-  { value: '@cf/google/gemma-2b-it-lora',           label: 'Gemma 2B LoRA',  desc: 'Google Lightweight LoRA Adapter (2B)',          icon: 'google.svg', tier: 'basic' },
-  { value: '@cf/meta/llama-3.2-3b-instruct',       label: 'Llama 3.2 3B',   desc: 'Meta Small Text Instruct (balanced)',           icon: 'meta.svg',   tier: 'basic' },
-  // ── Intermediate ──
-  { value: '@cf/qwen/qwen3-30b-a3b-fp8',            label: 'Qwen 3 30B',    desc: 'Alibaba Multilingual MoE (3B active)',          icon: 'qwen.svg',   tier: 'intermediate' },
-  { value: '@cf/zai-org/glm-4.7-flash',             label: 'GLM 4.7 Flash', desc: 'Zhipu AI Fast Bilingual Assistant',              icon: 'zai.svg',    tier: 'intermediate' },
-  { value: '@cf/meta/llama-3.1-8b-instruct-fp8-fast', label: 'Llama 3.1 8B', desc: 'Meta Fast Text Instruct (FP8 quantized)',       icon: 'meta.svg',   tier: 'intermediate' },
-  // ── Advanced ──
-  { value: '@cf/meta/llama-4-scout-17b-16e-instruct', label: 'Llama 4 Scout', desc: 'Meta MoE Instruct Generalist (17B active)',    icon: 'meta.svg',   tier: 'advanced' },
-  { value: '@cf/google/gemma-4-26b-a4b-it',          label: 'Gemma 4 26B',   desc: 'Google MoE Multimodal (4B active)',             icon: 'google.svg', tier: 'advanced' },
-  { value: '@cf/zai-org/glm-5.2',                   label: 'GLM 5.2',       desc: 'Zhipu AI High Performance Reasoning',           icon: 'zai.svg',    tier: 'advanced' },
-  { value: '@cf/moonshotai/kimi-k2.6',              label: 'Kimi K2.6',     desc: 'Moonshot AI Long Context & Vision',             icon: 'moonshotai.svg', tier: 'advanced' },
-  { value: '@cf/openai/gpt-oss-120b',               label: 'GPT-OSS 120B',  desc: 'Open-source frontier text model',               icon: 'openai.svg', tier: 'advanced' },
-];
 
 // ── ChatView sub-component: keyed by activeThreadId so it remounts cleanly ──
 
@@ -659,7 +629,7 @@ export default function App() {
 
   // ── Model state ──
   const [model, setModel] = useState(() => {
-    const saved = localStorage.getItem('shopmate_model');
+    const saved = localStorage.getItem(LS_MODEL);
     return saved && VALID_MODELS.includes(saved) ? saved : DEFAULT_MODEL;
   });
 
@@ -672,7 +642,7 @@ export default function App() {
   const [availablePlugins, setAvailablePlugins] = useState<any[]>([]);
   const [disabledPlugins, setDisabledPlugins] = useState<string[]>(() => {
     try {
-      const saved = localStorage.getItem('obot_disabled_plugins');
+      const saved = localStorage.getItem(LS_DISABLED_PLUGINS);
       return saved ? JSON.parse(saved) : [];
     } catch {
       return [];
@@ -724,7 +694,7 @@ export default function App() {
   const togglePlugin = (id: string) => {
     setDisabledPlugins(prev => {
       const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-      localStorage.setItem('obot_disabled_plugins', JSON.stringify(next));
+      localStorage.setItem(LS_DISABLED_PLUGINS, JSON.stringify(next));
       return next;
     });
   };
@@ -881,7 +851,7 @@ export default function App() {
 
   const handleSelectModel = (val: string) => {
     setModel(val);
-    localStorage.setItem('shopmate_model', val);
+    localStorage.setItem(LS_MODEL, val);
     setShowModelPopup(false);
   };
 
