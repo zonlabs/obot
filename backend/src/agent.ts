@@ -23,6 +23,19 @@ export class ChatAgent extends AIChatAgent<Env> {
     }
   }
 
+  override async onRequest(request: Request): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname.endsWith("/callback")) {
+      try {
+        await this.mcp.handleCallbackRequest(request);
+        return Response.redirect(`${url.origin}/`, 302);
+      } catch (err) {
+        return new Response(`Callback failed: ${err instanceof Error ? err.message : String(err)}`, { status: 500 });
+      }
+    }
+    return new Response("Not found", { status: 404 });
+  }
+
   @callable()
   listPlugins() {
     return this.getMcpServers();
