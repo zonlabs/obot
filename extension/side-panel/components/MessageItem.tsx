@@ -13,8 +13,7 @@ function formatToolName(raw: string): string {
   
   let parts = raw.split('_');
   if (parts[0] === 'tool' && parts.length > 1) {
-    const isServerId = /^[a-zA-Z0-9-]{8}$/.test(parts[1]);
-    parts = parts.slice(isServerId ? 2 : 1);
+    parts = parts.slice(2);
   }
 
   // Clean up any remaining hash-like prefixes
