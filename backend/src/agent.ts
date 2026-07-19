@@ -85,8 +85,11 @@ export class ChatAgent extends AIChatAgent<Env> {
         try {
           const stub = this.env.ChatAgent.get(this.env.ChatAgent.idFromName(pluginsAgentId)) as any;
           const state: any = await stub.listPlugins();
-          for (const [, server] of Object.entries<{ name: string; server_url: string }>(state.servers)) {
-            await this.addMcpServer(server.name, server.server_url);
+          const enabledPlugins = _options?.body?.enabledPlugins as string[] | undefined;
+          for (const [id, server] of Object.entries<{ name: string; server_url: string }>(state.servers)) {
+            if (!enabledPlugins || enabledPlugins.includes(id)) {
+              await this.addMcpServer(server.name, server.server_url);
+            }
           }
         } catch (err) {
           console.error("[ChatAgent] Failed to fetch and connect remote plugins:", err);

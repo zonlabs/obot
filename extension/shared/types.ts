@@ -94,4 +94,7 @@ export interface ChatViewProps {
   onSignOut: () => void;
   onOpenPlugins: () => void;
   pluginsAgentId?: string;
+  availablePlugins?: any[];
+  disabledPlugins?: string[];
+  onTogglePlugin?: (id: string) => void;
 }

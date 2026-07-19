@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, Suspense } from 'react';
 import { useAgent } from 'agents/react';
 import { useAgentChat } from '@cloudflare/ai-chat/react';
-import { SquarePen, MoreVertical, PictureInPicture2, User, X, CircleX } from 'lucide-react';
+import { SquarePen, MoreVertical, PictureInPicture2, User, X, CircleX, Settings2, Check } from 'lucide-react';
 
 import { HistoryPopup } from './components/HistoryPopup';
 import { WelcomeScreen } from './components/WelcomeScreen';
@@ -136,7 +136,34 @@ function ChatView(props: ChatViewProps) {
     onSignOut,
     onOpenPlugins,
     pluginsAgentId,
+    availablePlugins = [],
+    disabledPlugins = [],
+    onTogglePlugin,
   } = props;
+
+  const [showPluginsPopup, setShowPluginsPopup] = useState(false);
+  const pluginsPopupRef = useRef<HTMLDivElement>(null);
+
+  // Compute enabled plugins
+  const enabledPluginIds = useMemo(() => {
+    return availablePlugins
+      .map((p: any) => p.id)
+      .filter((id: string) => !disabledPlugins.includes(id));
+  }, [availablePlugins, disabledPlugins]);
+
+  // Click outside handler for plugins popup
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showPluginsPopup && pluginsPopupRef.current && !pluginsPopupRef.current.contains(event.target as Node)) {
+        const triggerBtn = document.querySelector('.chat-plugins-btn');
+        if (!triggerBtn?.contains(event.target as Node)) {
+          setShowPluginsPopup(false);
+        }
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showPluginsPopup]);
 
   // ── Agent & chat — clean remount per threadId ──
   const agent = useAgent({
@@ -183,7 +210,7 @@ function ChatView(props: ChatViewProps) {
 
   const { messages, sendMessage, addToolApprovalResponse, status, clearHistory, stop, setMessages, error: chatError } = useAgentChat({
     agent,
-    body: { model, pluginsAgentId, userId: user?.id || null },
+    body: { model, pluginsAgentId, userId: user?.id || null, enabledPlugins: enabledPluginIds },
     onToolCall: handleToolCall,
     tools: clientTools,
   });
@@ -428,6 +455,113 @@ function ChatView(props: ChatViewProps) {
         <div ref={messagesEndRef} />
       </div>
 
+      {/* ── Plugins Trigger ── */}
+      {user && (
+        <div className="chat-plugins-bar">
+          <div className="chat-plugins-active-list">
+            {(() => {
+              const enabled = availablePlugins.filter(p => !disabledPlugins.includes(p.id));
+              const visible = enabled.slice(0, 2);
+              const remaining = enabled.length - 2;
+              return (
+                <>
+                  {visible.map(p => {
+                    const domain = (() => {
+                      try { return new URL(p.url).hostname; } catch { return ''; }
+                    })();
+                    const faviconUrl = domain ? `${WORKER_URL}/api/favicon?hostname=${domain}` : '';
+                    return (
+                      <div key={p.id} className="active-plugin-tag" title={`Plugin: ${p.name}`}>
+                        {faviconUrl ? (
+                          <img
+                            src={faviconUrl}
+                            alt=""
+                            className="active-plugin-favicon"
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
+                          />
+                        ) : null}
+                        <div className="active-plugin-fallback-icon" style={{ display: faviconUrl ? 'none' : 'flex' }}>
+                          {(p.name || '?').charAt(0).toUpperCase()}
+                        </div>
+                        <span className="active-plugin-name">{p.name}</span>
+                      </div>
+                    );
+                  })}
+                  {remaining > 0 && (
+                    <div className="active-plugin-tag remaining-count" title={`${remaining} more plugins enabled`}>
+                      <span>+{remaining}</span>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+          
+          <div style={{ position: 'relative' }}>
+            <button
+              className={`chat-plugins-btn ${showPluginsPopup ? 'active' : ''}`}
+              onClick={() => setShowPluginsPopup(!showPluginsPopup)}
+              title="Configure Plugins"
+            >
+              <Settings2 size={18} />
+            </button>
+            
+            {showPluginsPopup && (
+              <div className="plugins-selector-popup" ref={pluginsPopupRef}>
+                <div className="plugins-selector-header">Plugin Access</div>
+                <div className="plugins-selector-list">
+                  {availablePlugins.length === 0 ? (
+                    <div className="plugins-selector-empty">No plugins connected</div>
+                  ) : (
+                    availablePlugins.map(p => {
+                      const isEnabled = !disabledPlugins.includes(p.id);
+                      const domain = (() => {
+                        try { return new URL(p.url).hostname; } catch { return ''; }
+                      })();
+                      const faviconUrl = domain ? `${WORKER_URL}/api/favicon?hostname=${domain}` : '';
+                      return (
+                        <div
+                          key={p.id}
+                          className="plugins-selector-item"
+                          onClick={() => onTogglePlugin?.(p.id)}
+                        >
+                          <div className="plugins-selector-item-left">
+                            {faviconUrl ? (
+                              <img
+                                src={faviconUrl}
+                                alt=""
+                                className="plugins-selector-favicon"
+                                onError={(e) => {
+                                  (e.target as HTMLElement).style.display = 'none';
+                                  const fallback = (e.target as HTMLElement).nextElementSibling as HTMLElement;
+                                  if (fallback) fallback.style.display = 'flex';
+                                }}
+                              />
+                            ) : null}
+                            <div className="plugins-selector-fallback-icon" style={{ display: faviconUrl ? 'none' : 'flex' }}>
+                              {(p.name || '?').charAt(0).toUpperCase()}
+                            </div>
+                            <span className="plugins-selector-name">{p.name}</span>
+                          </div>
+                          
+                          <div className={`plugins-selector-checkbox ${isEnabled ? 'checked' : ''}`}>
+                            {isEnabled && <Check size={10} strokeWidth={4} color="#ffffff" />}
+                          </div>
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* ── Chat Input ── */}
       <ChatInput
         inputValue={inputValue}
@@ -535,6 +669,15 @@ export default function App() {
   const [showModelPopup,   setShowModelPopup]   = useState(false);
   const [activeView, setActiveView] = useState<'chat' | 'plugins'>('chat');
   const [showHistoryPopup, setShowHistoryPopup] = useState(false);
+  const [availablePlugins, setAvailablePlugins] = useState<any[]>([]);
+  const [disabledPlugins, setDisabledPlugins] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('obot_disabled_plugins');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
 
   // ── Input state ──
   const [inputValue, setInputValue] = useState('');
@@ -558,6 +701,33 @@ export default function App() {
 
   // ── Derived ──
   const pluginsAgentId = useMemo(() => getPluginsAgentId(user), [user?.id]);
+
+  // Subscribe to MCP updates on pluginsAgentId
+  useAgent({
+    agent: 'ChatAgent',
+    name: pluginsAgentId,
+    host: WORKER_URL,
+    onMcpUpdate: (mcpState: any) => {
+      console.log('[App] MCP update received:', mcpState);
+      if (mcpState?.servers) {
+        const list = Object.entries(mcpState.servers).map(([id, s]: [string, any]) => ({
+          id,
+          name: s.name,
+          url: s.server_url ?? '',
+          state: s.state,
+        }));
+        setAvailablePlugins(list);
+      }
+    },
+  });
+
+  const togglePlugin = (id: string) => {
+    setDisabledPlugins(prev => {
+      const next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
+      localStorage.setItem('obot_disabled_plugins', JSON.stringify(next));
+      return next;
+    });
+  };
 
   const selectedModelLabel = useMemo(() => {
     const found = MODELS_DATA.find(m => m.value === model);
@@ -772,6 +942,9 @@ export default function App() {
         onSignOut={handleSignOut}
         onOpenPlugins={() => setActiveView('plugins')}
         pluginsAgentId={pluginsAgentId}
+        availablePlugins={availablePlugins}
+        disabledPlugins={disabledPlugins}
+        onTogglePlugin={togglePlugin}
       />
     </Suspense>
   );
