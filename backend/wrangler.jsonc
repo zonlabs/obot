@@ -1,5 +1,5 @@
 {
-  "name": "shop-assistant-api",
+  "name": "obot-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-07-17",
   "compatibility_flags": ["nodejs_compat"],
@@ -9,14 +9,8 @@
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "shop-assistant-db",
-      "database_id": "3cb2c742-06a6-4c4f-ad1b-0de26fd04377"
-    }
-  ],
-  "vectorize": [
-    {
-      "binding": "VECTORIZE",
-      "index_name": "product-embeddings"
+      "database_name": "obot-db",
+      "database_id": "16d9cb71-da9c-4dc8-8b8a-f0d4b491b56e"
     }
   ],
   "kv_namespaces": [

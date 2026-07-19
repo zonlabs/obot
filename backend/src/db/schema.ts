@@ -1,6 +1,5 @@
 export interface Env {
   DB: D1Database;
-  VECTORIZE: VectorizeIndex;
   CACHE: KVNamespace;
   AI: Ai;
   ChatAgent: DurableObjectNamespace;
@@ -36,6 +35,4 @@ export function generateProductKey(name: string, store: string): string {
   return `${name.toLowerCase().replace(/[^a-z0-9]/g, '_')}::${store.toLowerCase()}`;
 }
 
-export function generateSessionId(): string {
-  return crypto.randomUUID();
-}
+
